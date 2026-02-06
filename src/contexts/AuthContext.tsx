@@ -1,6 +1,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import type { User } from "@supabase/supabase-js";
+import type { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthContextType {
   user: User | null;
@@ -22,21 +23,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check local storage for existing session
-    const storedUser = localStorage.getItem("bimbelku_user");
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      setIsAdmin(parsedUser.email === MOCK_ADMIN_EMAIL);
-    }
-    setIsLoading(false);
+    // 1. Check Supabase Session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        setIsAdmin(true); // Assuming any logged in user is admin for now
+        setIsLoading(false);
+      } else {
+        // 2. Fallback: Check local storage for mock session
+        const storedUser = localStorage.getItem("bimbelku_user");
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          setIsAdmin(parsedUser.email === MOCK_ADMIN_EMAIL);
+        }
+        setIsLoading(false);
+      }
+    });
+
+    // Listen for Supabase Auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        setIsAdmin(true);
+        // Clear mock storage if real auth is active
+        localStorage.removeItem("bimbelku_user");
+      } else {
+        // If supabase logs out, we might still have mock user? 
+        // Usually logout clears everything.
+        if (!localStorage.getItem("bimbelku_user")) {
+           setUser(null);
+           setIsAdmin(false);
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    setIsLoading(true);
 
+    // 1. Try Supabase Auth
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (!error && data.user) {
+      setUser(data.user);
+      setIsAdmin(true);
+      setIsLoading(false);
+      return { error: null };
+    }
+
+    // 2. Fallback: Try Mock Auth if Supabase fails
+    // This allows the default credentials to still work
     if (email === MOCK_ADMIN_EMAIL && password === MOCK_ADMIN_PASSWORD) {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       const mockUser: User = {
         id: "mock-admin-id",
         app_metadata: {},
@@ -50,19 +98,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(mockUser);
       setIsAdmin(true);
       localStorage.setItem("bimbelku_user", JSON.stringify(mockUser));
+      setIsLoading(false);
       return { error: null };
     }
 
-    return { error: new Error("Invalid login credentials") };
+    setIsLoading(false);
+    return { error: error || new Error("Email atau password salah") };
   };
 
   const signOut = async () => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    setIsLoading(true);
+    
+    // Sign out from Supabase
+    await supabase.auth.signOut();
+    
+    // Clear Mock storage
+    localStorage.removeItem("bimbelku_user");
     
     setUser(null);
     setIsAdmin(false);
-    localStorage.removeItem("bimbelku_user");
+    setIsLoading(false);
   };
 
   return (

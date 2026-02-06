@@ -36,9 +36,9 @@ export default function HomePage() {
       description: "Semua tutor kami telah melalui seleksi ketat dan memiliki pengalaman mengajar yang mumpuni.",
     },
     {
-      icon: Clock,
-      title: "Jadwal Fleksibel",
-      description: "Pilih jadwal belajar sesuai kenyamanan Anda, baik online maupun offline.",
+      icon: MapPin,
+      title: "Lokasi & Jadwal Fleksibel",
+      description: "Belajar nyaman di cafe terdekat setiap kota atau online, dengan jadwal yang fleksibel.",
     },
     {
       icon: Users,
@@ -64,7 +64,7 @@ export default function HomePage() {
             </h1>
             <p className="mt-6 text-lg text-muted-foreground md:text-xl animate-fade-in" style={{ animationDelay: "0.1s" }}>
               Bimbingan belajar berkualitas dengan tutor profesional. 
-              Tersedia online dan offline di berbagai kota.
+              Tersedia online dan offline di cafe terdekat di setiap kota.
             </p>
             
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center animate-fade-in" style={{ animationDelay: "0.2s" }}>

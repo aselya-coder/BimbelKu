@@ -142,7 +142,7 @@ export default function AdminLocationsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Lokasi Belajar</h1>
-          <p className="text-muted-foreground">Kelola daftar lokasi/cafe partner untuk belajar</p>
+          <p className="text-muted-foreground">Kelola daftar lokasi/cafe terdekat untuk belajar</p>
         </div>
         <Button onClick={() => handleOpenDialog()}>
           <Plus className="mr-2 h-4 w-4" />

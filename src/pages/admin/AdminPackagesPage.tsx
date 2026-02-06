@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { mockService } from "@/lib/mockService";
+import { supabase } from "@/integrations/supabase/client";
 import { LEARNING_MODES, LEARNING_PLACES, LEARNING_SYSTEMS } from "@/lib/constants";
 import type { TutoringPackage, Subject, EducationLevel, City, PartnerLocation, LearningMode, LearningPlace, LearningSystem } from "@/types/database";
 
@@ -51,6 +52,9 @@ const initialFormData: PackageFormData = {
   is_active: true,
 };
 
+// Check if Supabase is configured
+const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
 export default function AdminPackagesPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -61,6 +65,20 @@ export default function AdminPackagesPage() {
   const { data: packages, isLoading } = useQuery({
     queryKey: ["admin-packages"],
     queryFn: async () => {
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase
+          .from("tutoring_packages")
+          .select(`
+            *,
+            subject:subjects(*),
+            level:education_levels(*),
+            city:cities(*),
+            location:partner_locations(*)
+          `)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return data as TutoringPackage[];
+      }
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 500));
       return mockService.packages.getAll();
@@ -70,6 +88,11 @@ export default function AdminPackagesPage() {
   const { data: subjects } = useQuery({
     queryKey: ["admin-subjects-select"],
     queryFn: async () => {
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase.from("subjects").select("*").eq("is_active", true);
+        if (error) throw error;
+        return data as Subject[];
+      }
       return mockService.subjects.getAll().filter(s => s.is_active);
     },
   });
@@ -77,6 +100,11 @@ export default function AdminPackagesPage() {
   const { data: levels } = useQuery({
     queryKey: ["admin-levels-select"],
     queryFn: async () => {
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase.from("education_levels").select("*").order("sort_order");
+        if (error) throw error;
+        return data as EducationLevel[];
+      }
       return mockService.educationLevels.getAll();
     },
   });
@@ -84,6 +112,11 @@ export default function AdminPackagesPage() {
   const { data: cities } = useQuery({
     queryKey: ["admin-cities-select"],
     queryFn: async () => {
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase.from("cities").select("*").eq("is_active", true);
+        if (error) throw error;
+        return data as City[];
+      }
       return mockService.cities.getAll().filter(c => c.is_active);
     },
   });
@@ -91,6 +124,14 @@ export default function AdminPackagesPage() {
   const { data: locations } = useQuery({
     queryKey: ["admin-locations-select", formData.city_id],
     queryFn: async () => {
+      if (isSupabaseConfigured) {
+        let query = supabase.from("partner_locations").select("*").eq("is_active", true);
+        if (formData.city_id) query = query.eq("city_id", formData.city_id);
+        const { data, error } = await query;
+        if (error) throw error;
+        return data as PartnerLocation[];
+      }
+
       let locations = mockService.locations.getAll().filter(l => l.is_active);
       if (formData.city_id) {
         locations = locations.filter(l => l.city_id === formData.city_id);
@@ -101,9 +142,6 @@ export default function AdminPackagesPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: PackageFormData & { id?: string }) => {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       const payload = {
         name: data.name,
         subject_id: data.subject_id,
@@ -122,6 +160,19 @@ export default function AdminPackagesPage() {
         slug: data.name.toLowerCase().replace(/ /g, "-").replace(/[^\w-]+/g, "")
       };
 
+      if (isSupabaseConfigured) {
+        if (data.id) {
+           const { error } = await supabase.from("tutoring_packages").update(payload).eq("id", data.id);
+           if (error) throw error;
+        } else {
+           const { error } = await supabase.from("tutoring_packages").insert([payload]);
+           if (error) throw error;
+        }
+        return;
+      }
+
+      // Mock fallback
+      await new Promise(resolve => setTimeout(resolve, 500));
       if (data.id) {
         return mockService.packages.update(data.id, payload);
       } else {
@@ -141,7 +192,12 @@ export default function AdminPackagesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Simulate network delay
+      if (isSupabaseConfigured) {
+        const { error } = await supabase.from("tutoring_packages").delete().eq("id", id);
+        if (error) throw error;
+        return;
+      }
+      // Mock fallback
       await new Promise(resolve => setTimeout(resolve, 500));
       mockService.packages.delete(id);
     },

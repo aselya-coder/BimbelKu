@@ -35,7 +35,7 @@ const MOCK_LOCATIONS: PartnerLocation[] = [
   { 
     id: "1", 
     city_id: "1", 
-    name: "Cafe Belajar Jakarta Selatan", 
+    name: "Cafe Terdekat Jakarta Selatan", 
     address: "Jl. Senopati No. 10", 
     operating_hours: "08:00 - 22:00",
     maps_link: "https://maps.google.com",  
@@ -66,6 +66,27 @@ const MOCK_PACKAGES: TutoringPackage[] = [
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     features: ["Modul Lengkap", "Try Out Bulanan", "Konsultasi PR"]
+  },
+  {
+    id: "2",
+    name: "Paket Grup Bahasa Inggris SMP",
+    slug: "paket-grup-bahasa-inggris-smp",
+    description: "Belajar Bahasa Inggris seru dalam grup kecil di cafe",
+    price: 750000,
+    session_duration: 90,
+    total_sessions: 8,
+    is_active: true,
+    subject_id: "5",
+    level_id: "2",
+    city_id: "1",
+    location_id: "1",
+    mode: "offline",
+    place: "partner_cafe",
+    system: "group",
+    group_quota: 5,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    features: ["Conversation Club", "Game Based Learning", "Native Speaker Session"]
   }
 ];
 
