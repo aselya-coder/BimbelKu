@@ -74,7 +74,7 @@ export default function HomePage() {
                 </Button>
               </Link>
               <Link to="/packages">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto text-primary border-primary hover:bg-primary/10 hover:text-primary">
                   Lihat Paket Bimbel
                 </Button>
               </Link>
