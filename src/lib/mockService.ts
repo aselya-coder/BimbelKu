@@ -37,7 +37,8 @@ const MOCK_LOCATIONS: PartnerLocation[] = [
     city_id: "1", 
     name: "Cafe Belajar Jakarta Selatan", 
     address: "Jl. Senopati No. 10", 
-    maps_link: "https://maps.google.com", 
+    operating_hours: "08:00 - 22:00",
+    maps_link: "https://maps.google.com",  
     is_active: true, 
     created_at: new Date().toISOString(), 
     updated_at: new Date().toISOString() 
@@ -57,8 +58,11 @@ const MOCK_PACKAGES: TutoringPackage[] = [
     subject_id: "1",
     level_id: "3",
     city_id: "1",
+    location_id: null,
     mode: "offline",
+    place: "student_home",
     system: "private",
+    group_quota: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     features: ["Modul Lengkap", "Try Out Bulanan", "Konsultasi PR"]
