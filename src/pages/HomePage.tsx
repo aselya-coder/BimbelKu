@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSubjects, useCities, useTestimonials } from "@/hooks/usePublicData";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, LEARNING_MODES, LEARNING_SYSTEMS } from "@/lib/constants";
 
 export default function HomePage() {
   const { data: subjects } = useSubjects();
@@ -87,11 +87,12 @@ export default function HomePage() {
               <div className="grid gap-4 md:grid-cols-5">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Mata Pelajaran</label>
-                  <Select value={filters.subject} onValueChange={(v) => setFilters({ ...filters, subject: v })}>
+                  <Select value={filters.subject || "all"} onValueChange={(v) => setFilters({ ...filters, subject: v === "all" ? "" : v })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Pilih mapel" />
+                      <SelectValue placeholder="Semua Mapel" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="all">Semua Mapel</SelectItem>
                       {subjects?.map((s) => (
                         <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                       ))}
@@ -101,11 +102,12 @@ export default function HomePage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Kota</label>
-                  <Select value={filters.city} onValueChange={(v) => setFilters({ ...filters, city: v })}>
+                  <Select value={filters.city || "all"} onValueChange={(v) => setFilters({ ...filters, city: v === "all" ? "" : v })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Pilih kota" />
+                      <SelectValue placeholder="Semua Kota" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="all">Semua Kota</SelectItem>
                       {cities?.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
@@ -115,26 +117,30 @@ export default function HomePage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Mode Belajar</label>
-                  <Select value={filters.mode} onValueChange={(v) => setFilters({ ...filters, mode: v })}>
+                  <Select value={filters.mode || "all"} onValueChange={(v) => setFilters({ ...filters, mode: v === "all" ? "" : v })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Online/Offline" />
+                      <SelectValue placeholder="Semua Mode" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="online">Online</SelectItem>
-                      <SelectItem value="offline">Offline</SelectItem>
+                      <SelectItem value="all">Semua Mode</SelectItem>
+                      {LEARNING_MODES.map((m) => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Tipe Belajar</label>
-                  <Select value={filters.system} onValueChange={(v) => setFilters({ ...filters, system: v })}>
+                  <Select value={filters.system || "all"} onValueChange={(v) => setFilters({ ...filters, system: v === "all" ? "" : v })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Private/Grup" />
+                      <SelectValue placeholder="Semua Tipe" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="private">Private</SelectItem>
-                      <SelectItem value="group">Grup</SelectItem>
+                      <SelectItem value="all">Semua Tipe</SelectItem>
+                      {LEARNING_SYSTEMS.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
