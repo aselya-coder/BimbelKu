@@ -1,37 +1,33 @@
 import { useQuery } from "@tanstack/react-query";
 import { Package, Users, MapPin, BookOpen, TrendingUp, Clock, Wifi, Home } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { mockService } from "@/lib/mockService";
 
 export default function AdminDashboard() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["admin-stats"],
     queryFn: async () => {
-      const [
-        { count: registrations },
-        { count: packages },
-        { count: subjects },
-        { count: cities },
-        { data: recentRegistrations },
-        { data: modeStats },
-      ] = await Promise.all([
-        supabase.from("registrations").select("*", { count: "exact", head: true }),
-        supabase.from("tutoring_packages").select("*", { count: "exact", head: true }).eq("is_active", true),
-        supabase.from("subjects").select("*", { count: "exact", head: true }).eq("is_active", true),
-        supabase.from("cities").select("*", { count: "exact", head: true }).eq("is_active", true),
-        supabase.from("registrations").select("*, package:tutoring_packages(name)").order("created_at", { ascending: false }).limit(5),
-        supabase.from("tutoring_packages").select("mode").eq("is_active", true),
-      ]);
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      const onlineCount = modeStats?.filter(p => p.mode === "online").length || 0;
-      const offlineCount = modeStats?.filter(p => p.mode === "offline").length || 0;
+      const registrations = mockService.registrations.getAll();
+      const packages = mockService.packages.getAll().filter(p => p.is_active);
+      const subjects = mockService.subjects.getAll().filter(s => s.is_active);
+      const cities = mockService.cities.getAll().filter(c => c.is_active);
+      
+      const recentRegistrations = [...registrations]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 5);
+
+      const onlineCount = packages.filter(p => p.mode === "online").length;
+      const offlineCount = packages.filter(p => p.mode === "offline").length;
 
       return {
-        registrations: registrations || 0,
-        packages: packages || 0,
-        subjects: subjects || 0,
-        cities: cities || 0,
-        recentRegistrations: recentRegistrations || [],
+        registrations: registrations.length,
+        packages: packages.length,
+        subjects: subjects.length,
+        cities: cities.length,
+        recentRegistrations,
         onlineCount,
         offlineCount,
       };

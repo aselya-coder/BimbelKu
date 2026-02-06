@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { mockService } from "@/lib/mockService";
 import { REGISTRATION_STATUSES, ADMIN_WHATSAPP_NUMBER } from "@/lib/constants";
 import type { Registration, RegistrationStatus } from "@/types/database";
 
@@ -27,28 +27,31 @@ export default function AdminRegistrationsPage() {
   const { data: registrations, isLoading } = useQuery({
     queryKey: ["admin-registrations", statusFilter],
     queryFn: async () => {
-      let query = supabase
-        .from("registrations")
-        .select("*, package:tutoring_packages(name, subject:subjects(name), level:education_levels(name))")
-        .order("created_at", { ascending: false });
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      let data = mockService.registrations.getAll();
 
       if (statusFilter && statusFilter !== "all") {
-        query = query.eq("status", statusFilter as RegistrationStatus);
+        data = data.filter(reg => reg.status === statusFilter);
       }
+      
+      // Sort by created_at descending
+      data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      const { data, error } = await query;
-      if (error) throw error;
       return data as Registration[];
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: RegistrationStatus; notes: string }) => {
-      const { error } = await supabase
-        .from("registrations")
-        .update({ status, admin_notes: notes || null })
-        .eq("id", id);
-      if (error) throw error;
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      return mockService.registrations.update(id, { 
+        status, 
+        admin_notes: notes || null 
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-registrations"] });

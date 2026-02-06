@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Loader2, Package } from "lucide-react";
@@ -12,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { mockService } from "@/lib/mockService";
 import { LEARNING_MODES, LEARNING_PLACES, LEARNING_SYSTEMS } from "@/lib/constants";
 import type { TutoringPackage, Subject, EducationLevel, City, PartnerLocation, LearningMode, LearningPlace, LearningSystem } from "@/types/database";
 
@@ -60,57 +61,49 @@ export default function AdminPackagesPage() {
   const { data: packages, isLoading } = useQuery({
     queryKey: ["admin-packages"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tutoring_packages")
-        .select("*, subject:subjects(*), level:education_levels(*), city:cities(*), location:partner_locations(*)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as TutoringPackage[];
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return mockService.packages.getAll();
     },
   });
 
   const { data: subjects } = useQuery({
     queryKey: ["admin-subjects-select"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("subjects").select("*").eq("is_active", true).order("name");
-      if (error) throw error;
-      return data as Subject[];
+      return mockService.subjects.getAll().filter(s => s.is_active);
     },
   });
 
   const { data: levels } = useQuery({
     queryKey: ["admin-levels-select"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("education_levels").select("*").order("sort_order");
-      if (error) throw error;
-      return data as EducationLevel[];
+      return mockService.educationLevels.getAll();
     },
   });
 
   const { data: cities } = useQuery({
     queryKey: ["admin-cities-select"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("cities").select("*").eq("is_active", true).order("name");
-      if (error) throw error;
-      return data as City[];
+      return mockService.cities.getAll().filter(c => c.is_active);
     },
   });
 
   const { data: locations } = useQuery({
     queryKey: ["admin-locations-select", formData.city_id],
     queryFn: async () => {
-      let query = supabase.from("partner_locations").select("*").eq("is_active", true).order("name");
+      let locations = mockService.locations.getAll().filter(l => l.is_active);
       if (formData.city_id) {
-        query = query.eq("city_id", formData.city_id);
+        locations = locations.filter(l => l.city_id === formData.city_id);
       }
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as PartnerLocation[];
+      return locations;
     },
   });
 
   const saveMutation = useMutation({
     mutationFn: async (data: PackageFormData & { id?: string }) => {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const payload = {
         name: data.name,
         subject_id: data.subject_id,
@@ -126,13 +119,13 @@ export default function AdminPackagesPage() {
         group_quota: data.group_quota ? parseInt(data.group_quota) : null,
         description: data.description || null,
         is_active: data.is_active,
+        slug: data.name.toLowerCase().replace(/ /g, "-").replace(/[^\w-]+/g, "")
       };
+
       if (data.id) {
-        const { error } = await supabase.from("tutoring_packages").update(payload).eq("id", data.id);
-        if (error) throw error;
+        return mockService.packages.update(data.id, payload);
       } else {
-        const { error } = await supabase.from("tutoring_packages").insert(payload);
-        if (error) throw error;
+        return mockService.packages.create(payload);
       }
     },
     onSuccess: () => {
@@ -148,8 +141,9 @@ export default function AdminPackagesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("tutoring_packages").delete().eq("id", id);
-      if (error) throw error;
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      mockService.packages.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-packages"] });
@@ -314,44 +308,30 @@ export default function AdminPackagesPage() {
 
                 {formData.system === "group" && (
                   <div className="space-y-2">
-                    <Label htmlFor="group_quota">Kuota Grup</Label>
+                    <Label>Kuota Grup (Siswa)</Label>
                     <Input
-                      id="group_quota"
                       type="number"
                       value={formData.group_quota}
                       onChange={(e) => setFormData({ ...formData, group_quota: e.target.value })}
-                      placeholder="Maks. siswa per grup"
+                      placeholder="Contoh: 5"
                     />
                   </div>
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="price">Harga (IDR) *</Label>
+                  <Label>Harga Paket (Rp) *</Label>
                   <Input
-                    id="price"
                     type="number"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder="Contoh: 1500000"
+                    placeholder="Contoh: 500000"
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="session_duration">Durasi per Sesi (menit) *</Label>
+                  <Label>Jumlah Pertemuan *</Label>
                   <Input
-                    id="session_duration"
-                    type="number"
-                    value={formData.session_duration}
-                    onChange={(e) => setFormData({ ...formData, session_duration: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="total_sessions">Total Sesi *</Label>
-                  <Input
-                    id="total_sessions"
                     type="number"
                     value={formData.total_sessions}
                     onChange={(e) => setFormData({ ...formData, total_sessions: e.target.value })}
@@ -359,32 +339,38 @@ export default function AdminPackagesPage() {
                   />
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="description">Deskripsi</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Deskripsi paket..."
-                    rows={3}
+                <div className="space-y-2">
+                  <Label>Durasi per Pertemuan (Menit) *</Label>
+                  <Input
+                    type="number"
+                    value={formData.session_duration}
+                    onChange={(e) => setFormData({ ...formData, session_duration: e.target.value })}
+                    required
                   />
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="is_active"
-                    checked={formData.is_active}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Deskripsi / Fasilitas</Label>
+                  <Textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Jelaskan fasilitas yang didapat..."
+                    className="h-24"
                   />
-                  <Label htmlFor="is_active">Aktif</Label>
+                </div>
+
+                <div className="flex items-center space-x-2 md:col-span-2">
+                  <Switch
+                    checked={formData.is_active}
+                    onCheckedChange={(c) => setFormData({ ...formData, is_active: c })}
+                  />
+                  <Label>Status Aktif</Label>
                 </div>
               </div>
 
               <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="outline">Batal</Button>
-                </DialogClose>
-                <Button type="submit" disabled={saveMutation.isPending || !formData.subject_id || !formData.level_id || !formData.city_id}>
+                <Button type="button" variant="outline" onClick={handleCloseDialog}>Batal</Button>
+                <Button type="submit" disabled={saveMutation.isPending}>
                   {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Simpan
                 </Button>
@@ -395,82 +381,96 @@ export default function AdminPackagesPage() {
       </div>
 
       <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nama Paket</TableHead>
-                <TableHead>Mapel</TableHead>
-                <TableHead>Jenjang</TableHead>
-                <TableHead>Mode</TableHead>
-                <TableHead>Harga</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[100px]">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                  </TableCell>
+                  <TableHead>Nama Paket</TableHead>
+                  <TableHead>Mapel & Jenjang</TableHead>
+                  <TableHead>Kota & Mode</TableHead>
+                  <TableHead>Harga</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
-              ) : packages?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
-                    <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-2" />
-                    <p className="text-muted-foreground">Belum ada paket</p>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                packages?.map((pkg) => (
+              </TableHeader>
+              <TableBody>
+                {packages?.map((pkg) => (
                   <TableRow key={pkg.id}>
-                    <TableCell className="font-medium">{pkg.name}</TableCell>
-                    <TableCell>{pkg.subject?.name}</TableCell>
-                    <TableCell>{pkg.level?.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center space-x-2">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        <span>{pkg.name}</span>
+                      </div>
+                    </TableCell>
                     <TableCell>
-                      <span className="capitalize">{pkg.mode}</span>
-                      {pkg.system === "group" && " (Grup)"}
+                      <div className="text-sm">
+                        <span className="font-medium">{pkg.subject?.name}</span>
+                        <span className="text-muted-foreground mx-1">•</span>
+                        <span>{pkg.level?.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <span>{pkg.city?.name}</span>
+                        <div className="text-xs text-muted-foreground capitalize">
+                          {pkg.mode} {pkg.system}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>{formatPrice(pkg.price)}</TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                        pkg.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                      <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+                        pkg.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                       }`}>
-                        {pkg.is_active ? "Aktif" : "Nonaktif"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(pkg)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Hapus Paket?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Apakah Anda yakin ingin menghapus "{pkg.name}"?
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteMutation.mutate(pkg.id)}>Hapus</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        {pkg.is_active ? "Aktif" : "Non-aktif"}
                       </div>
                     </TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(pkg)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Hapus Paket?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tindakan ini tidak dapat dibatalkan. Data paket akan dihapus permanen.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => deleteMutation.mutate(pkg.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Hapus
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ))}
+                {!packages?.length && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                      Belum ada data paket
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

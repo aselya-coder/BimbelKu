@@ -96,7 +96,7 @@ export default function AdminLoginPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="admin@example.com" {...field} />
+                      <Input type="email" placeholder="admin@bimbelku.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
@@ -11,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { mockService } from "@/lib/mockService";
 import type { Subject } from "@/types/database";
 
 export default function AdminSubjectsPage() {
@@ -24,28 +25,29 @@ export default function AdminSubjectsPage() {
   const { data: subjects, isLoading } = useQuery({
     queryKey: ["admin-subjects"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("subjects")
-        .select("*")
-        .order("name");
-      if (error) throw error;
-      return data as Subject[];
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return mockService.subjects.getAll();
     },
   });
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData & { id?: string }) => {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       if (data.id) {
-        const { error } = await supabase
-          .from("subjects")
-          .update({ name: data.name, description: data.description, is_active: data.is_active })
-          .eq("id", data.id);
-        if (error) throw error;
+        return mockService.subjects.update(data.id, {
+          name: data.name,
+          description: data.description,
+          is_active: data.is_active
+        });
       } else {
-        const { error } = await supabase
-          .from("subjects")
-          .insert({ name: data.name, description: data.description, is_active: data.is_active });
-        if (error) throw error;
+        return mockService.subjects.create({
+          name: data.name,
+          description: data.description,
+          is_active: data.is_active
+        });
       }
     },
     onSuccess: () => {
@@ -60,8 +62,9 @@ export default function AdminSubjectsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("subjects").delete().eq("id", id);
-      if (error) throw error;
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      mockService.subjects.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-subjects"] });
@@ -98,133 +101,133 @@ export default function AdminSubjectsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Mata Pelajaran</h1>
-          <p className="text-muted-foreground">Kelola daftar mata pelajaran</p>
+          <h1 className="text-3xl font-bold tracking-tight">Mata Pelajaran</h1>
+          <p className="text-muted-foreground">Kelola daftar mata pelajaran yang tersedia</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Tambah Mapel
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingSubject ? "Edit Mata Pelajaran" : "Tambah Mata Pelajaran"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nama Mapel *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Contoh: Matematika"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Deskripsi</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Deskripsi singkat..."
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-                />
-                <Label htmlFor="is_active">Aktif</Label>
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="outline">Batal</Button>
-                </DialogClose>
-                <Button type="submit" disabled={saveMutation.isPending}>
-                  {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Simpan
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => handleOpenDialog()}>
+          <Plus className="mr-2 h-4 w-4" />
+          Tambah Mata Pelajaran
+        </Button>
       </div>
 
       <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nama</TableHead>
-                <TableHead>Deskripsi</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[100px]">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
+        <CardHeader>
+          <CardTitle>Daftar Mata Pelajaran</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                  </TableCell>
+                  <TableHead>Nama</TableHead>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
-              ) : subjects?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    Belum ada mata pelajaran
-                  </TableCell>
-                </TableRow>
-              ) : (
-                subjects?.map((subject) => (
+              </TableHeader>
+              <TableBody>
+                {subjects?.map((subject) => (
                   <TableRow key={subject.id}>
                     <TableCell className="font-medium">{subject.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{subject.description || "-"}</TableCell>
+                    <TableCell>{subject.description}</TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                        subject.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                      <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
+                        subject.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                       }`}>
-                        {subject.is_active ? "Aktif" : "Nonaktif"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(subject)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Hapus Mata Pelajaran?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Apakah Anda yakin ingin menghapus "{subject.name}"? Tindakan ini tidak dapat dibatalkan.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteMutation.mutate(subject.id)}>
-                                Hapus
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        {subject.is_active ? "Aktif" : "Tidak Aktif"}
                       </div>
                     </TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(subject)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Hapus Mata Pelajaran?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tindakan ini tidak dapat dibatalkan. Data mata pelajaran akan dihapus permanen.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => deleteMutation.mutate(subject.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Hapus
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ))}
+                {!subjects?.length && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                      Belum ada data mata pelajaran
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingSubject ? "Edit Mata Pelajaran" : "Tambah Mata Pelajaran"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nama Mata Pelajaran</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Contoh: Matematika"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Deskripsi</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Deskripsi singkat mata pelajaran..."
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="is_active"
+                checked={formData.is_active}
+                onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+              />
+              <Label htmlFor="is_active">Status Aktif</Label>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleCloseDialog}>Batal</Button>
+              <Button type="submit" disabled={saveMutation.isPending}>
+                {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Simpan
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

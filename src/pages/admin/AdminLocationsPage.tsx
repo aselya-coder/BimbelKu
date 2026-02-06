@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
@@ -12,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { mockService } from "@/lib/mockService";
 import type { PartnerLocation, City } from "@/types/database";
 
 export default function AdminLocationsPage() {
@@ -31,30 +32,32 @@ export default function AdminLocationsPage() {
   const { data: locations, isLoading } = useQuery({
     queryKey: ["admin-locations"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("partner_locations")
-        .select("*, city:cities(*)")
-        .order("name");
-      if (error) throw error;
-      return data as PartnerLocation[];
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const locations = mockService.locations.getAll();
+      const cities = mockService.cities.getAll();
+      
+      // Join with city data
+      return locations.map(loc => ({
+        ...loc,
+        city: cities.find(c => c.id === loc.city_id)
+      }));
     },
   });
 
   const { data: cities } = useQuery({
     queryKey: ["admin-cities-select"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cities")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
-      if (error) throw error;
-      return data as City[];
+      return mockService.cities.getAll().filter(c => c.is_active);
     },
   });
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData & { id?: string }) => {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const payload = {
         city_id: data.city_id,
         name: data.name,
@@ -62,12 +65,11 @@ export default function AdminLocationsPage() {
         operating_hours: data.operating_hours || null,
         is_active: data.is_active,
       };
+
       if (data.id) {
-        const { error } = await supabase.from("partner_locations").update(payload).eq("id", data.id);
-        if (error) throw error;
+        return mockService.locations.update(data.id, payload);
       } else {
-        const { error } = await supabase.from("partner_locations").insert(payload);
-        if (error) throw error;
+        return mockService.locations.create(payload);
       }
     },
     onSuccess: () => {
@@ -82,8 +84,9 @@ export default function AdminLocationsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("partner_locations").delete().eq("id", id);
-      if (error) throw error;
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      mockService.locations.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-locations"] });
@@ -98,15 +101,21 @@ export default function AdminLocationsPage() {
     if (location) {
       setEditingLocation(location);
       setFormData({ 
-        city_id: location.city_id, 
-        name: location.name, 
+        city_id: location.city_id,
+        name: location.name,
         address: location.address,
         operating_hours: location.operating_hours || "",
-        is_active: location.is_active 
+        is_active: location.is_active
       });
     } else {
       setEditingLocation(null);
-      setFormData({ city_id: "", name: "", address: "", operating_hours: "", is_active: true });
+      setFormData({ 
+        city_id: "", 
+        name: "", 
+        address: "", 
+        operating_hours: "", 
+        is_active: true 
+      });
     }
     setIsDialogOpen(true);
   };
@@ -114,7 +123,13 @@ export default function AdminLocationsPage() {
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingLocation(null);
-    setFormData({ city_id: "", name: "", address: "", operating_hours: "", is_active: true });
+    setFormData({ 
+      city_id: "", 
+      name: "", 
+      address: "", 
+      operating_hours: "", 
+      is_active: true 
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -126,158 +141,166 @@ export default function AdminLocationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Lokasi Partner</h1>
-          <p className="text-muted-foreground">Kelola cafe partner untuk belajar offline</p>
+          <h1 className="text-2xl font-bold text-foreground">Lokasi Belajar</h1>
+          <p className="text-muted-foreground">Kelola daftar lokasi/cafe partner untuk belajar</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Tambah Lokasi
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingLocation ? "Edit Lokasi" : "Tambah Lokasi"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="city_id">Kota *</Label>
-                <Select value={formData.city_id} onValueChange={(v) => setFormData({ ...formData, city_id: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih kota" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities?.map((city) => (
-                      <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="name">Nama Lokasi *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Contoh: Cafe Belajar Central"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Alamat *</Label>
-                <Textarea
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Alamat lengkap lokasi"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="operating_hours">Jam Operasional</Label>
-                <Input
-                  id="operating_hours"
-                  value={formData.operating_hours}
-                  onChange={(e) => setFormData({ ...formData, operating_hours: e.target.value })}
-                  placeholder="Contoh: 08.00 - 21.00"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-                />
-                <Label htmlFor="is_active">Aktif</Label>
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="outline">Batal</Button>
-                </DialogClose>
-                <Button type="submit" disabled={saveMutation.isPending || !formData.city_id}>
-                  {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Simpan
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => handleOpenDialog()}>
+          <Plus className="mr-2 h-4 w-4" />
+          Tambah Lokasi
+        </Button>
       </div>
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nama</TableHead>
-                <TableHead>Kota</TableHead>
-                <TableHead>Alamat</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[100px]">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
+          {isLoading ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                  </TableCell>
+                  <TableHead>Nama Lokasi</TableHead>
+                  <TableHead>Kota</TableHead>
+                  <TableHead>Alamat</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
-              ) : locations?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Belum ada lokasi partner
-                  </TableCell>
-                </TableRow>
-              ) : (
-                locations?.map((location) => (
+              </TableHeader>
+              <TableBody>
+                {locations?.map((location) => (
                   <TableRow key={location.id}>
                     <TableCell className="font-medium">{location.name}</TableCell>
-                    <TableCell>{location.city?.name}</TableCell>
-                    <TableCell className="text-muted-foreground max-w-xs truncate">{location.address}</TableCell>
+                    <TableCell>{location.city?.name || "-"}</TableCell>
+                    <TableCell className="max-w-xs truncate">{location.address}</TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                        location.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                      <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
+                        location.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                       }`}>
-                        {location.is_active ? "Aktif" : "Nonaktif"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(location)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Hapus Lokasi?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Apakah Anda yakin ingin menghapus "{location.name}"?
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteMutation.mutate(location.id)}>
-                                Hapus
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        {location.is_active ? "Aktif" : "Tidak Aktif"}
                       </div>
                     </TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(location)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Hapus Lokasi?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tindakan ini tidak dapat dibatalkan. Data lokasi akan dihapus permanen.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => deleteMutation.mutate(location.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Hapus
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ))}
+                {!locations?.length && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      Belum ada data lokasi
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingLocation ? "Edit Lokasi" : "Tambah Lokasi"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="city">Kota</Label>
+              <Select 
+                value={formData.city_id} 
+                onValueChange={(value) => setFormData({ ...formData, city_id: value })}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Kota" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cities?.map((city) => (
+                    <SelectItem key={city.id} value={city.id}>
+                      {city.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="name">Nama Lokasi</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Contoh: Cafe Belajar Kemang"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="address">Alamat Lengkap</Label>
+              <Textarea
+                id="address"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="Jl. Raya Kemang No. 123..."
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="operating_hours">Jam Operasional</Label>
+              <Input
+                id="operating_hours"
+                value={formData.operating_hours}
+                onChange={(e) => setFormData({ ...formData, operating_hours: e.target.value })}
+                placeholder="Contoh: 10:00 - 22:00"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="is_active"
+                checked={formData.is_active}
+                onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+              />
+              <Label htmlFor="is_active">Status Aktif</Label>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleCloseDialog}>Batal</Button>
+              <Button type="submit" disabled={saveMutation.isPending}>
+                {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Simpan
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,5 +1,5 @@
+
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
 interface AuthContextType {
@@ -12,66 +12,57 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// MOCK ADMIN CREDENTIALS
+const MOCK_ADMIN_EMAIL = "admin@bimbelku.com";
+const MOCK_ADMIN_PASSWORD = "password123";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const checkAdminStatus = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    if (error) {
-      console.error("Error checking admin status:", error);
-      return false;
-    }
-    return !!data;
-  };
-
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        // Check admin status
-        const adminStatus = await checkAdminStatus(currentUser.id);
-        setIsAdmin(adminStatus);
-      } else {
-        setIsAdmin(false);
-      }
-      setIsLoading(false);
-    });
-
-    // THEN check current session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        const adminStatus = await checkAdminStatus(currentUser.id);
-        setIsAdmin(adminStatus);
-      }
-      setIsLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // Check local storage for existing session
+    const storedUser = localStorage.getItem("bimbelku_user");
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      setIsAdmin(parsedUser.email === MOCK_ADMIN_EMAIL);
+    }
+    setIsLoading(false);
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    if (email === MOCK_ADMIN_EMAIL && password === MOCK_ADMIN_PASSWORD) {
+      const mockUser: User = {
+        id: "mock-admin-id",
+        app_metadata: {},
+        user_metadata: {},
+        aud: "authenticated",
+        created_at: new Date().toISOString(),
+        email: email,
+        role: "authenticated"
+      };
+      
+      setUser(mockUser);
+      setIsAdmin(true);
+      localStorage.setItem("bimbelku_user", JSON.stringify(mockUser));
+      return { error: null };
+    }
+
+    return { error: new Error("Invalid login credentials") };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     setUser(null);
     setIsAdmin(false);
+    localStorage.removeItem("bimbelku_user");
   };
 
   return (

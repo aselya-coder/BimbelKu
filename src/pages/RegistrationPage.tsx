@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { mockService } from "@/lib/mockService";
 import { usePackages, useCities, usePackage } from "@/hooks/usePublicData";
 import { ADMIN_WHATSAPP_NUMBER } from "@/lib/constants";
 
@@ -65,7 +65,10 @@ export default function RegistrationPage() {
   const onSubmit = async (data: RegistrationFormData) => {
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("registrations").insert({
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      mockService.registrations.create({
         package_id: data.package_id,
         student_name: data.student_name,
         whatsapp_number: data.whatsapp_number,
@@ -75,8 +78,6 @@ export default function RegistrationPage() {
         detailed_location: isOffline ? data.detailed_location || null : null,
         status: "new",
       });
-
-      if (error) throw error;
 
       setIsSuccess(true);
       

@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { mockService } from "@/lib/mockService";
 import type { Testimonial } from "@/types/database";
 
 export default function AdminTestimonialsPage() {
@@ -31,17 +31,17 @@ export default function AdminTestimonialsPage() {
   const { data: testimonials, isLoading } = useQuery({
     queryKey: ["admin-testimonials"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("testimonials")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Testimonial[];
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return mockService.testimonials.getAll();
     },
   });
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData & { id?: string }) => {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const payload = {
         name: data.name,
         role: data.role || null,
@@ -49,12 +49,11 @@ export default function AdminTestimonialsPage() {
         rating: parseInt(data.rating),
         is_active: data.is_active,
       };
+
       if (data.id) {
-        const { error } = await supabase.from("testimonials").update(payload).eq("id", data.id);
-        if (error) throw error;
+        return mockService.testimonials.update(data.id, payload);
       } else {
-        const { error } = await supabase.from("testimonials").insert(payload);
-        if (error) throw error;
+        return mockService.testimonials.create(payload);
       }
     },
     onSuccess: () => {
@@ -69,8 +68,9 @@ export default function AdminTestimonialsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("testimonials").delete().eq("id", id);
-      if (error) throw error;
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return mockService.testimonials.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-testimonials"] });
