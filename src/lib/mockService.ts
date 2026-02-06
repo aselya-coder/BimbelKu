@@ -72,9 +72,27 @@ const MOCK_PACKAGES: TutoringPackage[] = [
 const MOCK_TESTIMONIALS: Testimonial[] = [
   {
     id: "1",
-    name: "Budi Santoso",
+    name: "Andi Pratama",
     role: "Siswa SMA",
-    content: "BimbelKu sangat membantu saya memahami materi pelajaran dengan lebih baik.",
+    content: "Bimbel ini sangat membantu saya memahami materi matematika yang sulit. Tutor sabar dan menjelaskan dengan jelas.",
+    rating: 5,
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: "2",
+    name: "Ibu Dewi",
+    role: "Orang Tua",
+    content: "Anak saya jadi lebih semangat belajar. Sistem pembelajaran yang fleksibel sangat cocok dengan jadwal kami.",
+    rating: 5,
+    is_active: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: "3",
+    name: "Rizky Hidayat",
+    role: "Siswa SMP",
+    content: "Saya suka belajar online di sini karena tutornya asyik dan materinya mudah dipahami.",
     rating: 5,
     is_active: true,
     created_at: new Date().toISOString()
@@ -88,7 +106,7 @@ const KEYS = {
   CITIES: "bimbelku_cities",
   LOCATIONS: "bimbelku_locations",
   PACKAGES: "bimbelku_packages",
-  TESTIMONIALS: "bimbelku_testimonials",
+  TESTIMONIALS: "bimbelku_testimonials_v2",
   REGISTRATIONS: "bimbelku_registrations"
 };
 
