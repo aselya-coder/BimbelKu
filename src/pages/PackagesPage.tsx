@@ -1,0 +1,271 @@
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Filter, MapPin, Monitor, Users, BookOpen, ChevronRight, Wifi, Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { usePackages, useSubjects, useCities, useEducationLevels } from "@/hooks/usePublicData";
+import type { LearningMode, LearningSystem } from "@/types/database";
+import { LEARNING_MODES, LEARNING_SYSTEMS, LEARNING_PLACES } from "@/lib/constants";
+
+export default function PackagesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const [filters, setFilters] = useState({
+    subject_id: searchParams.get("subject") || "",
+    level_id: searchParams.get("level") || "",
+    city_id: searchParams.get("city") || "",
+    mode: (searchParams.get("mode") as LearningMode) || undefined,
+    system: (searchParams.get("system") as LearningSystem) || undefined,
+  });
+
+  const { data: packages, isLoading } = usePackages({
+    subject_id: filters.subject_id || undefined,
+    level_id: filters.level_id || undefined,
+    city_id: filters.city_id || undefined,
+    mode: filters.mode,
+    system: filters.system,
+  });
+
+  const { data: subjects } = useSubjects();
+  const { data: cities } = useCities();
+  const { data: levels } = useEducationLevels();
+
+  const updateFilter = (key: string, value: string) => {
+    const newFilters = { ...filters, [key]: value === "all" ? "" : value };
+    setFilters(newFilters);
+
+    // Update URL params
+    const params = new URLSearchParams();
+    Object.entries(newFilters).forEach(([k, v]) => {
+      if (v) params.set(k, v);
+    });
+    setSearchParams(params);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      subject_id: "",
+      level_id: "",
+      city_id: "",
+      mode: undefined,
+      system: undefined,
+    });
+    setSearchParams({});
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
+  };
+
+  const getModeLabel = (mode: LearningMode) => {
+    return LEARNING_MODES.find(m => m.value === mode)?.label || mode;
+  };
+
+  const getSystemLabel = (system: LearningSystem) => {
+    return LEARNING_SYSTEMS.find(s => s.value === system)?.label || system;
+  };
+
+  const getPlaceLabel = (place: string | null) => {
+    if (!place) return null;
+    return LEARNING_PLACES.find(p => p.value === place)?.label || place;
+  };
+
+  const hasActiveFilters = Object.values(filters).some(v => v);
+
+  return (
+    <div className="py-8 md:py-12">
+      <div className="container">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground md:text-4xl">Paket Bimbel</h1>
+          <p className="mt-2 text-muted-foreground">
+            Temukan paket bimbingan belajar yang sesuai dengan kebutuhan Anda
+          </p>
+        </div>
+
+        {/* Filters */}
+        <Card className="mb-8">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Filter className="h-5 w-5 text-muted-foreground" />
+              <span className="font-medium">Filter</span>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="ml-auto text-sm">
+                  Reset Filter
+                </Button>
+              )}
+            </div>
+            
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+              <Select value={filters.subject_id || "all"} onValueChange={(v) => updateFilter("subject_id", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Mata Pelajaran" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Mapel</SelectItem>
+                  {subjects?.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filters.level_id || "all"} onValueChange={(v) => updateFilter("level_id", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Jenjang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Jenjang</SelectItem>
+                  {levels?.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filters.city_id || "all"} onValueChange={(v) => updateFilter("city_id", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Kota" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Kota</SelectItem>
+                  {cities?.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filters.mode || "all"} onValueChange={(v) => updateFilter("mode", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Mode Belajar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Mode</SelectItem>
+                  {LEARNING_MODES.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filters.system || "all"} onValueChange={(v) => updateFilter("system", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Tipe Belajar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tipe</SelectItem>
+                  {LEARNING_SYSTEMS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Results */}
+        {isLoading ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2 mt-2" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-2/3" />
+                </CardContent>
+                <CardFooter>
+                  <Skeleton className="h-10 w-full" />
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : packages?.length === 0 ? (
+          <Card className="p-12 text-center">
+            <BookOpen className="mx-auto h-12 w-12 text-muted-foreground/50" />
+            <h3 className="mt-4 text-lg font-medium">Tidak ada paket ditemukan</h3>
+            <p className="mt-2 text-muted-foreground">
+              Coba ubah filter pencarian atau hubungi kami untuk informasi lebih lanjut.
+            </p>
+            {hasActiveFilters && (
+              <Button variant="outline" className="mt-4" onClick={clearFilters}>
+                Reset Filter
+              </Button>
+            )}
+          </Card>
+        ) : (
+          <>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Menampilkan {packages?.length} paket
+            </p>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {packages?.map((pkg) => (
+                <Card key={pkg.id} className="group overflow-hidden transition-all hover:shadow-lg hover:border-primary/30">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                          {pkg.name}
+                        </h3>
+                        <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                          <BookOpen className="h-4 w-4" />
+                          <span>{pkg.subject?.name}</span>
+                          <span>•</span>
+                          <span>{pkg.level?.name}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="pb-4">
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <Badge variant="secondary" className="gap-1">
+                        {pkg.mode === "online" ? <Wifi className="h-3 w-3" /> : <Home className="h-3 w-3" />}
+                        {getModeLabel(pkg.mode)}
+                      </Badge>
+                      <Badge variant="secondary" className="gap-1">
+                        <Users className="h-3 w-3" />
+                        {getSystemLabel(pkg.system)}
+                      </Badge>
+                      {pkg.place && (
+                        <Badge variant="outline">{getPlaceLabel(pkg.place)}</Badge>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
+                      <MapPin className="h-4 w-4" />
+                      <span>{pkg.city?.name}</span>
+                    </div>
+
+                    <div className="text-2xl font-bold text-primary">
+                      {formatPrice(pkg.price)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {pkg.total_sessions} sesi × {pkg.session_duration} menit
+                    </div>
+                  </CardContent>
+
+                  <CardFooter className="pt-0">
+                    <Link to={`/packages/${pkg.id}`} className="w-full">
+                      <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors" variant="outline">
+                        Lihat Detail
+                        <ChevronRight className="ml-1 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
