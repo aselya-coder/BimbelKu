@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Filter, MapPin, Monitor, Users, BookOpen, ChevronRight, Wifi, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,13 +12,13 @@ import { LEARNING_MODES, LEARNING_SYSTEMS, LEARNING_PLACES } from "@/lib/constan
 export default function PackagesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   
-  const [filters, setFilters] = useState({
+  const filters = {
     subject_id: searchParams.get("subject") || "",
     level_id: searchParams.get("level") || "",
     city_id: searchParams.get("city") || "",
     mode: (searchParams.get("mode") as LearningMode) || undefined,
     system: (searchParams.get("system") as LearningSystem) || undefined,
-  });
+  };
 
   const { data: packages, isLoading } = usePackages({
     subject_id: filters.subject_id || undefined,
@@ -34,25 +33,21 @@ export default function PackagesPage() {
   const { data: levels } = useEducationLevels();
 
   const updateFilter = (key: string, value: string) => {
-    const newFilters = { ...filters, [key]: value === "all" ? "" : value };
-    setFilters(newFilters);
-
-    // Update URL params
-    const params = new URLSearchParams();
-    Object.entries(newFilters).forEach(([k, v]) => {
-      if (v) params.set(k, v);
-    });
+    const params = new URLSearchParams(searchParams);
+    const newValue = value === "all" ? "" : value;
+    
+    // Map internal key to URL key
+    const urlKey = key.replace("_id", "");
+    
+    if (newValue) {
+      params.set(urlKey, newValue);
+    } else {
+      params.delete(urlKey);
+    }
     setSearchParams(params);
   };
 
   const clearFilters = () => {
-    setFilters({
-      subject_id: "",
-      level_id: "",
-      city_id: "",
-      mode: undefined,
-      system: undefined,
-    });
     setSearchParams({});
   };
 

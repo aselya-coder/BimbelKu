@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Search, BookOpen, MapPin, Monitor, Users, ArrowRight, Star, CheckCircle2, Clock, Award, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,7 @@ export default function HomePage() {
   const { data: subjects } = useSubjects();
   const { data: cities } = useCities();
   const { data: testimonials } = useTestimonials();
+  const navigate = useNavigate();
 
   const [filters, setFilters] = useState({
     subject: "",
@@ -25,7 +26,7 @@ export default function HomePage() {
     if (filters.city) params.set("city", filters.city);
     if (filters.mode) params.set("mode", filters.mode);
     if (filters.system) params.set("system", filters.system);
-    window.location.href = `/packages?${params.toString()}`;
+    navigate(`/packages?${params.toString()}`);
   };
 
   const benefits = [
