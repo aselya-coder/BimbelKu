@@ -269,7 +269,7 @@ export default function HomePage() {
                   </Button>
                 </Link>
                 <Link to="/packages">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto border-white text-white hover:bg-white/10">
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto border-white bg-transparent text-white hover:bg-white/10 hover:text-white">
                     Lihat Paket
                   </Button>
                 </Link>
