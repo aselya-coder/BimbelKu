@@ -51,8 +51,8 @@ const MOCK_PACKAGES: TutoringPackage[] = [
     slug: "paket-private-matematika-sma",
     description: "Belajar matematika intensif one-on-one",
     price: 1500000,
-    session_count: 8,
-    duration_minutes: 90,
+    session_duration: 90,
+    total_sessions: 8,
     is_active: true,
     subject_id: "1",
     level_id: "3",
@@ -273,9 +273,15 @@ export const mockService = {
         };
       });
     },
-    create: (data: Omit<Registration, "id" | "created_at">) => {
+    create: (data: Omit<Registration, "id" | "created_at" | "updated_at" | "admin_notes"> & { admin_notes?: string | null }) => {
       const items = getData<Registration>(KEYS.REGISTRATIONS);
-      const newItem = { ...data, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+      const newItem: Registration = { 
+        ...data, 
+        id: crypto.randomUUID(), 
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        admin_notes: data.admin_notes || null
+      };
       saveData(KEYS.REGISTRATIONS, [...items, newItem]);
       return newItem;
     },

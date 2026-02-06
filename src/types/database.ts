@@ -34,14 +34,17 @@ export interface PartnerLocation {
   name: string;
   address: string;
   operating_hours: string | null;
+  maps_link?: string | null;
   is_active: boolean;
   created_at: string;
+  updated_at?: string;
   city?: City;
 }
 
 export interface TutoringPackage {
   id: string;
   name: string;
+  slug?: string;
   subject_id: string;
   level_id: string;
   city_id: string;
@@ -54,6 +57,7 @@ export interface TutoringPackage {
   total_sessions: number;
   group_quota: number | null;
   description: string | null;
+  features?: string[];
   is_active: boolean;
   created_at: string;
   updated_at: string;
