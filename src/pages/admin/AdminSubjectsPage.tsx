@@ -7,12 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { mockService } from "@/lib/mockService";
+import { supabase } from "@/integrations/supabase/client";
 import type { Subject } from "@/types/database";
 
 export default function AdminSubjectsPage() {
@@ -21,11 +22,19 @@ export default function AdminSubjectsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [formData, setFormData] = useState({ name: "", description: "", is_active: true });
+  const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   const { data: subjects, isLoading } = useQuery({
     queryKey: ["admin-subjects"],
     queryFn: async () => {
-      // Simulate network delay
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase
+          .from("subjects")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return (data as Subject[]) || [];
+      }
       await new Promise(resolve => setTimeout(resolve, 500));
       return mockService.subjects.getAll();
     },
@@ -33,21 +42,27 @@ export default function AdminSubjectsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData & { id?: string }) => {
-      // Simulate network delay
+      if (isSupabaseConfigured) {
+        const payload = { name: data.name, description: data.description, is_active: data.is_active };
+        if (data.id) {
+          const { error } = await supabase
+            .from("subjects")
+            .update(payload)
+            .eq("id", data.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from("subjects")
+            .insert([payload]);
+          if (error) throw error;
+        }
+        return;
+      }
       await new Promise(resolve => setTimeout(resolve, 500));
-      
       if (data.id) {
-        return mockService.subjects.update(data.id, {
-          name: data.name,
-          description: data.description,
-          is_active: data.is_active
-        });
+        return mockService.subjects.update(data.id, { name: data.name, description: data.description, is_active: data.is_active });
       } else {
-        return mockService.subjects.create({
-          name: data.name,
-          description: data.description,
-          is_active: data.is_active
-        });
+        return mockService.subjects.create({ name: data.name, description: data.description, is_active: data.is_active });
       }
     },
     onSuccess: () => {
@@ -62,7 +77,11 @@ export default function AdminSubjectsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Simulate network delay
+      if (isSupabaseConfigured) {
+        const { error } = await supabase.from("subjects").delete().eq("id", id);
+        if (error) throw error;
+        return;
+      }
       await new Promise(resolve => setTimeout(resolve, 500));
       mockService.subjects.delete(id);
     },
@@ -189,6 +208,7 @@ export default function AdminSubjectsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingSubject ? "Edit Mata Pelajaran" : "Tambah Mata Pelajaran"}</DialogTitle>
+            <DialogDescription>Isi data mata pelajaran.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">

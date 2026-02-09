@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { mockService } from "@/lib/mockService";
 import { usePackages, useCities, usePackage } from "@/hooks/usePublicData";
-import { ADMIN_WHATSAPP_NUMBER } from "@/lib/constants";
+import { getAdminWhatsAppNumber } from "@/lib/constants";
 
 const registrationSchema = z.object({
   student_name: z.string().trim().min(2, "Nama minimal 2 karakter").max(100, "Nama maksimal 100 karakter"),
@@ -88,10 +88,10 @@ export default function RegistrationPage() {
       );
       
       setTimeout(() => {
-        window.open(`https://wa.me/${ADMIN_WHATSAPP_NUMBER}?text=${message}`, "_blank");
+        window.open(`https://wa.me/${getAdminWhatsAppNumber()}?text=${message}`, "_blank");
       }, 1500);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Registration error:", error);
       toast({
         title: "Gagal Mendaftar",

@@ -1,14 +1,13 @@
 -- FIX & SEED SCRIPT
 -- Jalankan script ini di Supabase SQL Editor.
 -- Script ini akan:
--- 1. MENGHAPUS semua data yang ada (Reset) untuk menghilangkan duplikat.
--- 2. Menambahkan "Unique Constraint" agar data tidak bisa dobel lagi.
--- 3. Mengisi ulang data default (Seed).
+-- 1. Menambahkan "Unique Constraint" agar data tidak bisa dobel.
+-- 2. Mengisi data default (Seed) secara idempoten (ON CONFLICT DO UPDATE/DO NOTHING).
 
 -- ==========================================
--- 1. RESET DATA (HAPUS SEMUA)
+-- 1. PENGAMAN & PERAPIHAN DATA
 -- ==========================================
-TRUNCATE public.registrations, public.testimonials, public.schedules, public.tutoring_packages, public.partner_locations, public.cities, public.education_levels, public.subjects RESTART IDENTITY CASCADE;
+-- Tidak melakukan TRUNCATE agar data yang sudah ada tidak hilang
 
 -- ==========================================
 -- 2. TAMBAHKAN PENGAMAN (UNIQUE CONSTRAINTS)
@@ -32,6 +31,38 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'partner_locations_city_name_key') THEN
     ALTER TABLE public.partner_locations ADD CONSTRAINT partner_locations_city_name_key UNIQUE (city_id, name);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' AND table_name = 'partner_locations' AND column_name = 'city_id'
+  ) THEN
+    ALTER TABLE public.partner_locations ADD COLUMN city_id uuid;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'partner_locations_city_id_fkey') THEN
+    ALTER TABLE public.partner_locations
+    ADD CONSTRAINT partner_locations_city_id_fkey
+    FOREIGN KEY (city_id) REFERENCES public.cities(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+-- Testimonials: Hapus duplikat lalu pasang constraint unik (name, content)
+-- Hapus duplikat (menyisakan satu entri untuk kombinasi nama+content)
+DELETE FROM public.testimonials t
+USING public.testimonials t2
+WHERE t.name = t2.name
+  AND COALESCE(t.content, '') = COALESCE(t2.content, '')
+  AND t.id > t2.id;
+
+-- Pasang constraint unik jika belum ada
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'testimonials_name_content_key') THEN
+    ALTER TABLE public.testimonials ADD CONSTRAINT testimonials_name_content_key UNIQUE (name, content);
   END IF;
 END $$;
 
@@ -71,9 +102,90 @@ BEGIN
   SELECT id INTO jakarta_id FROM public.cities WHERE name = 'Jakarta';
   
   IF jakarta_id IS NOT NULL THEN
-    INSERT INTO public.partner_locations (city_id, name, address, operating_hours, maps_link, is_active)
-    VALUES (jakarta_id, 'Cafe Terdekat Jakarta Selatan', 'Jl. Senopati No. 10', '08:00 - 22:00', 'https://maps.google.com', true)
-    ON CONFLICT (city_id, name) DO NOTHING;
+    INSERT INTO public.partner_locations (city_id, name, address, operating_hours, maps_link, latitude, longitude, is_active)
+    VALUES (jakarta_id, 'Cafe Terdekat Jakarta Selatan', 'Jl. Senopati No. 10', '08:00 - 22:00', 'https://maps.google.com', -6.2294, 106.8166, true)
+    ON CONFLICT (city_id, name) DO UPDATE SET
+      address = EXCLUDED.address,
+      operating_hours = EXCLUDED.operating_hours,
+      maps_link = EXCLUDED.maps_link,
+      latitude = EXCLUDED.latitude,
+      longitude = EXCLUDED.longitude,
+      is_active = EXCLUDED.is_active;
+    
+    INSERT INTO public.partner_locations (city_id, name, address, operating_hours, maps_link, latitude, longitude, is_active)
+    VALUES (jakarta_id, 'Cafe Terdekat Blok M', 'Jl. Sultan Hasanudin', '09:00 - 23:00', 'https://maps.google.com', -6.2443, 106.7990, true)
+    ON CONFLICT (city_id, name) DO UPDATE SET
+      address = EXCLUDED.address,
+      operating_hours = EXCLUDED.operating_hours,
+      maps_link = EXCLUDED.maps_link,
+      latitude = EXCLUDED.latitude,
+      longitude = EXCLUDED.longitude,
+      is_active = EXCLUDED.is_active;
+  END IF;
+END $$;
+
+DO $$
+DECLARE
+  jakarta_id uuid;
+  bandung_id uuid;
+  surabaya_id uuid;
+BEGIN
+  SELECT id INTO jakarta_id FROM public.cities WHERE name = 'Jakarta';
+  SELECT id INTO bandung_id FROM public.cities WHERE name = 'Bandung';
+  SELECT id INTO surabaya_id FROM public.cities WHERE name = 'Surabaya';
+
+  UPDATE public.partner_locations SET city_id = jakarta_id
+  WHERE city_id IS NULL AND (
+    name ILIKE '%jakarta%' OR address ILIKE '%jakarta%' OR
+    (latitude BETWEEN -6.5 AND -6.0 AND longitude BETWEEN 106.6 AND 107.2)
+  );
+
+  UPDATE public.partner_locations SET city_id = bandung_id
+  WHERE city_id IS NULL AND (
+    name ILIKE '%bandung%' OR address ILIKE '%bandung%' OR
+    (latitude BETWEEN -7.05 AND -6.75 AND longitude BETWEEN 107.5 AND 107.75)
+  );
+
+  UPDATE public.partner_locations SET city_id = surabaya_id
+  WHERE city_id IS NULL AND (
+    name ILIKE '%surabaya%' OR address ILIKE '%surabaya%' OR
+    (latitude BETWEEN -7.45 AND -7.15 AND longitude BETWEEN 112.6 AND 112.85)
+  );
+
+  UPDATE public.partner_locations SET is_active = true WHERE city_id IS NOT NULL;
+END $$;
+
+-- Tambahkan lokasi untuk Bandung & Surabaya beserta koordinat
+DO $$
+DECLARE
+  bandung_id uuid;
+  surabaya_id uuid;
+BEGIN
+  SELECT id INTO bandung_id FROM public.cities WHERE name = 'Bandung';
+  SELECT id INTO surabaya_id FROM public.cities WHERE name = 'Surabaya';
+
+  IF bandung_id IS NOT NULL THEN
+    INSERT INTO public.partner_locations (city_id, name, address, operating_hours, maps_link, latitude, longitude, is_active)
+    VALUES (bandung_id, 'Cafe Terdekat Dago', 'Jl. Dago', '08:00 - 22:00', 'https://maps.google.com', -6.8899, 107.6100, true)
+    ON CONFLICT (city_id, name) DO UPDATE SET
+      address = EXCLUDED.address,
+      operating_hours = EXCLUDED.operating_hours,
+      maps_link = EXCLUDED.maps_link,
+      latitude = EXCLUDED.latitude,
+      longitude = EXCLUDED.longitude,
+      is_active = EXCLUDED.is_active;
+  END IF;
+
+  IF surabaya_id IS NOT NULL THEN
+    INSERT INTO public.partner_locations (city_id, name, address, operating_hours, maps_link, latitude, longitude, is_active)
+    VALUES (surabaya_id, 'Cafe Terdekat Tunjungan', 'Jl. Tunjungan', '08:00 - 22:00', 'https://maps.google.com', -7.2569, 112.7344, true)
+    ON CONFLICT (city_id, name) DO UPDATE SET
+      address = EXCLUDED.address,
+      operating_hours = EXCLUDED.operating_hours,
+      maps_link = EXCLUDED.maps_link,
+      latitude = EXCLUDED.latitude,
+      longitude = EXCLUDED.longitude,
+      is_active = EXCLUDED.is_active;
   END IF;
 END $$;
 
@@ -154,9 +266,41 @@ BEGIN
 END $$;
 
 -- Insert Testimonials
--- Testimonials don't have unique keys usually, so we might duplicate them if we run this often without truncate.
--- But since we TRUNCATE at start, it's fine.
 INSERT INTO public.testimonials (name, role, content, rating, is_active) VALUES
 ('Andi Pratama', 'Siswa SMA', 'Bimbel ini sangat membantu saya memahami materi matematika yang sulit. Tutor sabar dan menjelaskan dengan jelas.', 5, true),
 ('Ibu Dewi', 'Orang Tua', 'Anak saya jadi lebih semangat belajar. Sistem pembelajaran yang fleksibel sangat cocok dengan jadwal kami.', 5, true),
-('Rizky Hidayat', 'Siswa SMP', 'Saya suka belajar online di sini karena tutornya asyik dan materinya mudah dipahami.', 5, true);
+('Rizky Hidayat', 'Siswa SMP', 'Saya suka belajar online di sini karena tutornya asyik dan materinya mudah dipahami.', 5, true)
+ON CONFLICT (name, content) DO NOTHING;
+
+DO $$
+DECLARE
+  pkg_math uuid;
+  pkg_english uuid;
+BEGIN
+  SELECT id INTO pkg_math FROM public.tutoring_packages WHERE slug = 'paket-private-matematika-sma';
+  SELECT id INTO pkg_english FROM public.tutoring_packages WHERE slug = 'paket-grup-bahasa-inggris-smp';
+
+  IF pkg_math IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM public.schedules WHERE package_id = pkg_math AND day_of_week = 6 AND start_time = '10:00' AND end_time = '12:00'
+    ) THEN
+      INSERT INTO public.schedules (package_id, day_of_week, start_time, end_time, max_students, is_available)
+      VALUES (pkg_math, 6, '10:00', '12:00', NULL, true);
+    END IF;
+  END IF;
+
+  IF pkg_english IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM public.schedules WHERE package_id = pkg_english AND day_of_week = 3 AND start_time = '16:00' AND end_time = '18:00'
+    ) THEN
+      INSERT INTO public.schedules (package_id, day_of_week, start_time, end_time, max_students, is_available)
+      VALUES (pkg_english, 3, '16:00', '18:00', 8, true);
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM public.schedules WHERE package_id = pkg_english AND day_of_week = 5 AND start_time = '16:00' AND end_time = '18:00'
+    ) THEN
+      INSERT INTO public.schedules (package_id, day_of_week, start_time, end_time, max_students, is_available)
+      VALUES (pkg_english, 5, '16:00', '18:00', 8, true);
+    END IF;
+  END IF;
+END $$;

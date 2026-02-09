@@ -7,13 +7,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { mockService } from "@/lib/mockService";
+import { supabase } from "@/integrations/supabase/client";
 import type { PartnerLocation, City } from "@/types/database";
 
 export default function AdminLocationsPage() {
@@ -29,16 +30,23 @@ export default function AdminLocationsPage() {
     is_active: true 
   });
 
+  const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
+
   const { data: locations, isLoading } = useQuery({
     queryKey: ["admin-locations"],
     queryFn: async () => {
-      // Simulate network delay
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase
+          .from("partner_locations")
+          .select("*, city:cities(*)")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return (data as PartnerLocation[]) || [];
+      }
+
       await new Promise(resolve => setTimeout(resolve, 500));
-      
       const locations = mockService.locations.getAll();
       const cities = mockService.cities.getAll();
-      
-      // Join with city data
       return locations.map(loc => ({
         ...loc,
         city: cities.find(c => c.id === loc.city_id)
@@ -49,15 +57,21 @@ export default function AdminLocationsPage() {
   const { data: cities } = useQuery({
     queryKey: ["admin-cities-select"],
     queryFn: async () => {
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase
+          .from("cities")
+          .select("*")
+          .eq("is_active", true)
+          .order("name");
+        if (error) throw error;
+        return data as City[];
+      }
       return mockService.cities.getAll().filter(c => c.is_active);
     },
   });
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData & { id?: string }) => {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       const payload = {
         city_id: data.city_id,
         name: data.name,
@@ -66,6 +80,23 @@ export default function AdminLocationsPage() {
         is_active: data.is_active,
       };
 
+      if (isSupabaseConfigured) {
+        if (data.id) {
+          const { error } = await supabase
+            .from("partner_locations")
+            .update(payload)
+            .eq("id", data.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from("partner_locations")
+            .insert([payload]);
+          if (error) throw error;
+        }
+        return;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500));
       if (data.id) {
         return mockService.locations.update(data.id, payload);
       } else {
@@ -77,14 +108,22 @@ export default function AdminLocationsPage() {
       toast({ title: editingLocation ? "Berhasil diperbarui" : "Berhasil ditambahkan" });
       handleCloseDialog();
     },
-    onError: () => {
-      toast({ title: "Gagal menyimpan", variant: "destructive" });
+    onError: (err: unknown) => {
+      toast({ title: "Gagal menyimpan", description: String(err), variant: "destructive" });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Simulate network delay
+      if (isSupabaseConfigured) {
+        const { error } = await supabase
+          .from("partner_locations")
+          .delete()
+          .eq("id", id);
+        if (error) throw error;
+        return;
+      }
+
       await new Promise(resolve => setTimeout(resolve, 500));
       mockService.locations.delete(id);
     },
@@ -92,8 +131,8 @@ export default function AdminLocationsPage() {
       queryClient.invalidateQueries({ queryKey: ["admin-locations"] });
       toast({ title: "Berhasil dihapus" });
     },
-    onError: () => {
-      toast({ title: "Gagal menghapus", variant: "destructive" });
+    onError: (err: unknown) => {
+      toast({ title: "Gagal menghapus", description: String(err), variant: "destructive" });
     },
   });
 
@@ -228,6 +267,7 @@ export default function AdminLocationsPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingLocation ? "Edit Lokasi" : "Tambah Lokasi"}</DialogTitle>
+            <DialogDescription>Isi detail lokasi/cafe belajar.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">

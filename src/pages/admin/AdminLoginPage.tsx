@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link, Navigate } from "react-router-dom";
 import { GraduationCap, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,12 +27,8 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const from = (location.state as any)?.from?.pathname || "/admin";
-
-  // If already logged in as admin, redirect
-  if (user && isAdmin) {
-    navigate(from, { replace: true });
-  }
+  const fromState = (location.state as { from?: { pathname?: string } } | null);
+  const from = fromState?.from?.pathname ?? "/admin";
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -41,6 +37,11 @@ export default function AdminLoginPage() {
       password: "",
     },
   });
+
+  // After initializing hooks, redirect using Navigate component if already logged in
+  if (user && isAdmin) {
+    return <Navigate to={from} replace />;
+  }
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);

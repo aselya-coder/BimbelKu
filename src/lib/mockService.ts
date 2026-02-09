@@ -32,16 +32,57 @@ const MOCK_CITIES: City[] = [
 ];
 
 const MOCK_LOCATIONS: PartnerLocation[] = [
-  { 
-    id: "1", 
-    city_id: "1", 
-    name: "Cafe Terdekat Jakarta Selatan", 
-    address: "Jl. Senopati No. 10", 
+  {
+    id: "1",
+    city_id: "1",
+    name: "Cafe Terdekat Jakarta Selatan",
+    address: "Jl. Senopati No. 10",
     operating_hours: "08:00 - 22:00",
-    maps_link: "https://maps.google.com",  
-    is_active: true, 
-    created_at: new Date().toISOString(), 
-    updated_at: new Date().toISOString() 
+    maps_link: "https://maps.google.com",
+    latitude: -6.2294,
+    longitude: 106.8166,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: "2",
+    city_id: "1",
+    name: "Cafe Terdekat Blok M",
+    address: "Jl. Sultan Hasanudin",
+    operating_hours: "09:00 - 23:00",
+    maps_link: "https://maps.google.com",
+    latitude: -6.2443,
+    longitude: 106.7990,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: "3",
+    city_id: "2",
+    name: "Cafe Terdekat Dago",
+    address: "Jl. Dago",
+    operating_hours: "08:00 - 22:00",
+    maps_link: "https://maps.google.com",
+    latitude: -6.8899,
+    longitude: 107.6100,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: "4",
+    city_id: "3",
+    name: "Cafe Terdekat Tunjungan",
+    address: "Jl. Tunjungan",
+    operating_hours: "08:00 - 22:00",
+    maps_link: "https://maps.google.com",
+    latitude: -7.2569,
+    longitude: 112.7344,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   }
 ];
 
@@ -337,6 +378,11 @@ export const mockService = {
         return items[index];
       }
       return null;
+    }
+    ,
+    delete: (id: string) => {
+      const items = getData<Registration>(KEYS.REGISTRATIONS).filter(item => item.id !== id);
+      saveData(KEYS.REGISTRATIONS, items);
     }
   },
 

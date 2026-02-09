@@ -4,14 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { usePackage } from "@/hooks/usePublicData";
+import { usePackage, useSchedules } from "@/hooks/usePublicData";
 import { LEARNING_MODES, LEARNING_SYSTEMS, LEARNING_PLACES } from "@/lib/constants";
+import { DAYS_OF_WEEK } from "@/lib/constants";
 import { WhatsAppButton } from "@/components/ui/WhatsAppButton";
 
 export default function PackageDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: pkg, isLoading, error } = usePackage(id || "");
+  const { data: schedules } = useSchedules(id || "");
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -200,6 +202,31 @@ export default function PackageDetailPage() {
                     </div>
                   </div>
                 )}
+
+                <div className="mt-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="h-4 w-4 text-primary" />
+                    <span className="font-medium">Jadwal Tersedia</span>
+                  </div>
+                  {schedules && schedules.length > 0 ? (
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      {schedules.map((s) => {
+                        const dayLabel = DAYS_OF_WEEK.find(d => d.value === s.day_of_week)?.label || String(s.day_of_week);
+                        return (
+                          <li key={`${s.id}`} className="flex items-center gap-2">
+                            <Badge variant="outline" className="mr-1">{dayLabel}</Badge>
+                            <span>{s.start_time} - {s.end_time}</span>
+                            {typeof s.max_students === "number" && (
+                              <span className="ml-2">• Kapasitas {s.max_students}</span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Jadwal akan dikoordinasikan bersama admin melalui WhatsApp.</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
 

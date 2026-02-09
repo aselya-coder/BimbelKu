@@ -21,6 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   useEffect(() => {
     // 1. Check Supabase Session
@@ -30,12 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(true); // Assuming any logged in user is admin for now
         setIsLoading(false);
       } else {
-        // 2. Fallback: Check local storage for mock session
-        const storedUser = localStorage.getItem("bimbelku_user");
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
-          setIsAdmin(parsedUser.email === MOCK_ADMIN_EMAIL);
+        if (!isSupabaseConfigured) {
+          const storedUser = localStorage.getItem("bimbelku_user");
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+            setIsAdmin(parsedUser.email === MOCK_ADMIN_EMAIL);
+          }
         }
         setIsLoading(false);
       }
@@ -53,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         // If supabase logs out, we might still have mock user? 
         // Usually logout clears everything.
-        if (!localStorage.getItem("bimbelku_user")) {
+        if (!isSupabaseConfigured || !localStorage.getItem("bimbelku_user")) {
            setUser(null);
            setIsAdmin(false);
         }
@@ -61,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isSupabaseConfigured]);
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
@@ -79,9 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: null };
     }
 
-    // 2. Fallback: Try Mock Auth if Supabase fails
-    // This allows the default credentials to still work
-    if (email === MOCK_ADMIN_EMAIL && password === MOCK_ADMIN_PASSWORD) {
+    if (!isSupabaseConfigured && email === MOCK_ADMIN_EMAIL && password === MOCK_ADMIN_PASSWORD) {
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       

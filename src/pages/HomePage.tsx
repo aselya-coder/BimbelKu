@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, BookOpen, MapPin, Monitor, Users, ArrowRight, Star, CheckCircle2, Clock, Award, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useSubjects, useCities, useTestimonials } from "@/hooks/usePublicData";
-import { APP_NAME, LEARNING_MODES, LEARNING_SYSTEMS } from "@/lib/constants";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSubjects, useCities, useTestimonials, usePartnerLocations, usePackages } from "@/hooks/usePublicData";
+import { APP_NAME, LEARNING_MODES, LEARNING_SYSTEMS, LEARNING_PLACES } from "@/lib/constants";
 
 export default function HomePage() {
   const { data: subjects } = useSubjects();
@@ -18,7 +20,11 @@ export default function HomePage() {
     city: "",
     mode: "",
     system: "",
+    place: "",
   });
+
+  const { data: partnerLocations, isLoading: isLoadingLocations } = usePartnerLocations(filters.city || undefined);
+  const { data: cafePackages } = usePackages(filters.city ? { city_id: filters.city, place: "partner_cafe" } : undefined);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -26,6 +32,7 @@ export default function HomePage() {
     if (filters.city) params.set("city", filters.city);
     if (filters.mode) params.set("mode", filters.mode);
     if (filters.system) params.set("system", filters.system);
+    if (filters.place) params.set("place", filters.place);
     navigate(`/packages?${params.toString()}`);
   };
 
@@ -85,11 +92,11 @@ export default function HomePage() {
           {/* Quick Filter Form */}
           <Card className="mx-auto mt-12 max-w-4xl shadow-lg animate-fade-in" style={{ animationDelay: "0.3s" }}>
             <CardContent className="p-6">
-              <div className="grid gap-4 md:grid-cols-5">
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Mata Pelajaran</label>
                   <Select value={filters.subject || "all"} onValueChange={(v) => setFilters({ ...filters, subject: v === "all" ? "" : v })}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full truncate [&>span]:whitespace-nowrap">
                       <SelectValue placeholder="Semua Mapel" />
                     </SelectTrigger>
                     <SelectContent>
@@ -104,7 +111,7 @@ export default function HomePage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Kota</label>
                   <Select value={filters.city || "all"} onValueChange={(v) => setFilters({ ...filters, city: v === "all" ? "" : v })}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full truncate [&>span]:whitespace-nowrap">
                       <SelectValue placeholder="Semua Kota" />
                     </SelectTrigger>
                     <SelectContent>
@@ -119,7 +126,7 @@ export default function HomePage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Mode Belajar</label>
                   <Select value={filters.mode || "all"} onValueChange={(v) => setFilters({ ...filters, mode: v === "all" ? "" : v })}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full truncate [&>span]:whitespace-nowrap">
                       <SelectValue placeholder="Semua Mode" />
                     </SelectTrigger>
                     <SelectContent>
@@ -132,29 +139,121 @@ export default function HomePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Tipe Belajar</label>
-                  <Select value={filters.system || "all"} onValueChange={(v) => setFilters({ ...filters, system: v === "all" ? "" : v })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Semua Tipe" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Semua Tipe</SelectItem>
-                      {LEARNING_SYSTEMS.map((s) => (
-                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <label className="text-sm font-medium text-muted-foreground">Tipe Belajar</label>
+              <Select value={filters.system || "all"} onValueChange={(v) => setFilters({ ...filters, system: v === "all" ? "" : v })}>
+              <SelectTrigger className="w-full truncate [&>span]:whitespace-nowrap">
+                  <SelectValue placeholder="Semua Tipe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tipe</SelectItem>
+                  {LEARNING_SYSTEMS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Tempat Belajar</label>
+              <Select value={filters.place || "all"} onValueChange={(v) => setFilters({ ...filters, place: v === "all" ? "" : v })}>
+                <SelectTrigger className="w-full truncate [&>span]:whitespace-nowrap">
+                  <SelectValue placeholder="Semua Tempat" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tempat</SelectItem>
+                  {LEARNING_PLACES.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
                 <div className="flex items-end">
-                  <Button onClick={handleSearch} className="w-full bg-gradient-primary hover:opacity-90">
-                    <Search className="mr-2 h-4 w-4" />
-                    Cari
-                  </Button>
+              <Button onClick={handleSearch} className="w-full bg-gradient-primary hover:opacity-90">
+                <Search className="mr-2 h-4 w-4" />
+                Cari
+              </Button>
                 </div>
               </div>
-            </CardContent>
+          </CardContent>
           </Card>
+
+          {filters.city && (
+            <Card className="mx-auto mt-6 max-w-4xl shadow-md animate-fade-in" style={{ animationDelay: "0.35s" }}>
+              <CardContent className="p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="font-medium">Lokasi Cafe di Kota Terpilih</div>
+                </div>
+                {isLoadingLocations ? (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Skeleton key={i} className="h-32 w-full" />
+                    ))}
+                  </div>
+                ) : (partnerLocations && partnerLocations.length > 0) ? (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {partnerLocations.map((loc) => (
+                      <Card key={loc.id} className="group transition-all hover:shadow-lg hover:border-primary/30 bg-white border rounded-xl">
+                        <CardHeader className="p-4 pb-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="font-semibold break-words whitespace-normal flex-1">{loc.name}</div>
+                            {typeof loc.distance_km === "number" && (
+                              <Badge variant="outline" className="shrink-0 whitespace-nowrap">~{loc.distance_km.toFixed(1)} km</Badge>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="px-4 pb-2">
+                          <div className="text-sm text-muted-foreground flex items-center gap-1">
+                            <MapPin className="h-4 w-4" />
+                            <span className="break-words whitespace-normal">{loc.address}</span>
+                          </div>
+                          {(() => {
+                            const pkgs = (cafePackages || []).filter(p => String(p.location_id) === String(loc.id));
+                            if (pkgs.length === 0) return null;
+                            return (
+                              <div className="mt-3 space-y-3">
+                                {pkgs.slice(0, 3).map(p => (
+                                  <div key={p.id} className="space-y-1">
+                                    <div className="text-sm font-medium break-words whitespace-normal">{p.name}</div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <Badge variant="secondary">{p.system === "private" ? "Private" : "Grup"}</Badge>
+                                      <Badge variant="outline">{p.mode === "online" ? "Online" : "Offline"}</Badge>
+                                      <div className="text-sm text-muted-foreground">{formatPrice(p.price)}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              {pkgs.length > 3 && (
+                                <div className="text-xs text-muted-foreground">+{pkgs.length - 3} paket lainnya</div>
+                              )}
+                              </div>
+                            );
+                          })()}
+                        </CardContent>
+                        <CardFooter className="p-4 pt-0">
+                          <div className="grid grid-cols-1 gap-2 w-full">
+                            {loc.maps_link && (
+                              <a href={loc.maps_link} target="_blank" rel="noopener noreferrer" className="w-full">
+                                <Button variant="outline" size="sm" className="w-full">Buka Maps</Button>
+                              </a>
+                            )}
+                            <Button size="sm" className="w-full bg-gradient-primary hover:opacity-90" onClick={() => {
+                              const params = new URLSearchParams();
+                              params.set("city", filters.city);
+                              params.set("place", "partner_cafe");
+                              params.set("location", loc.id);
+                              navigate(`/packages?${params.toString()}`);
+                            }}>Lihat Paket di Cafe Ini</Button>
+                          </div>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">Belum ada lokasi cafe terdaftar di kota ini.</div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </section>
 
@@ -288,3 +387,4 @@ export default function HomePage() {
     </div>
   );
 }
+  const formatPrice = (price: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(price);

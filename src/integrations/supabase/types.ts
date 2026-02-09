@@ -65,6 +65,8 @@ export type Database = {
           is_active: boolean
           name: string
           operating_hours: string | null
+          latitude: number | null
+          longitude: number | null
         }
         Insert: {
           address: string
@@ -74,6 +76,8 @@ export type Database = {
           is_active?: boolean
           name: string
           operating_hours?: string | null
+          latitude?: number | null
+          longitude?: number | null
         }
         Update: {
           address?: string
@@ -83,6 +87,8 @@ export type Database = {
           is_active?: boolean
           name?: string
           operating_hours?: string | null
+          latitude?: number | null
+          longitude?: number | null
         }
         Relationships: [
           {

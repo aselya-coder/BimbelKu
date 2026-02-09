@@ -5,8 +5,8 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { usePackages, useSubjects, useCities, useEducationLevels } from "@/hooks/usePublicData";
-import type { LearningMode, LearningSystem } from "@/types/database";
+import { usePackages, useSubjects, useCities, useEducationLevels, usePartnerLocations } from "@/hooks/usePublicData";
+import type { LearningMode, LearningSystem, LearningPlace } from "@/types/database";
 import { LEARNING_MODES, LEARNING_SYSTEMS, LEARNING_PLACES } from "@/lib/constants";
 
 export default function PackagesPage() {
@@ -18,6 +18,8 @@ export default function PackagesPage() {
     city_id: searchParams.get("city") || "",
     mode: (searchParams.get("mode") as LearningMode) || undefined,
     system: (searchParams.get("system") as LearningSystem) || undefined,
+    place: (searchParams.get("place") as LearningPlace) || undefined,
+    location_id: searchParams.get("location") || "",
   };
 
   const { data: packages, isLoading } = usePackages({
@@ -26,11 +28,15 @@ export default function PackagesPage() {
     city_id: filters.city_id || undefined,
     mode: filters.mode,
     system: filters.system,
+    place: filters.place,
+    location_id: filters.location_id || undefined,
   });
 
   const { data: subjects } = useSubjects();
   const { data: cities } = useCities();
   const { data: levels } = useEducationLevels();
+  const { data: partnerLocations, isLoading: isLoadingLocations } = usePartnerLocations(filters.city_id || undefined);
+  const { data: cafePackages } = usePackages(filters.city_id ? { city_id: filters.city_id, place: "partner_cafe" } : undefined);
 
   const updateFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -99,9 +105,9 @@ export default function PackagesPage() {
               )}
             </div>
             
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
               <Select value={filters.subject_id || "all"} onValueChange={(v) => updateFilter("subject_id", v)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full truncate [&>span]:whitespace-nowrap">
                   <SelectValue placeholder="Mata Pelajaran" />
                 </SelectTrigger>
                 <SelectContent>
@@ -113,7 +119,7 @@ export default function PackagesPage() {
               </Select>
 
               <Select value={filters.level_id || "all"} onValueChange={(v) => updateFilter("level_id", v)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full truncate [&>span]:whitespace-nowrap">
                   <SelectValue placeholder="Jenjang" />
                 </SelectTrigger>
                 <SelectContent>
@@ -125,7 +131,7 @@ export default function PackagesPage() {
               </Select>
 
               <Select value={filters.city_id || "all"} onValueChange={(v) => updateFilter("city_id", v)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full truncate [&>span]:whitespace-nowrap">
                   <SelectValue placeholder="Kota" />
                 </SelectTrigger>
                 <SelectContent>
@@ -137,7 +143,7 @@ export default function PackagesPage() {
               </Select>
 
               <Select value={filters.mode || "all"} onValueChange={(v) => updateFilter("mode", v)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full truncate [&>span]:whitespace-nowrap">
                   <SelectValue placeholder="Mode Belajar" />
                 </SelectTrigger>
                 <SelectContent>
@@ -149,7 +155,7 @@ export default function PackagesPage() {
               </Select>
 
               <Select value={filters.system || "all"} onValueChange={(v) => updateFilter("system", v)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full truncate [&>span]:whitespace-nowrap">
                   <SelectValue placeholder="Tipe Belajar" />
                 </SelectTrigger>
                 <SelectContent>
@@ -159,9 +165,112 @@ export default function PackagesPage() {
                   ))}
                 </SelectContent>
               </Select>
+
+              <Select value={filters.place || "all"} onValueChange={(v) => updateFilter("place", v)}>
+                <SelectTrigger className="w-full truncate [&>span]:whitespace-nowrap">
+                  <SelectValue placeholder="Tempat Belajar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tempat</SelectItem>
+                  {LEARNING_PLACES.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
+
+        {/* Partner Locations by City */}
+        {filters.city_id && (
+          <Card className="mb-8">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div className="font-medium">Lokasi Belajar di Kota Terpilih</div>
+                {filters.place !== "partner_cafe" && (
+                  <Button size="sm" variant="outline" onClick={() => updateFilter("place", "partner_cafe")}>Tampilkan Paket di Cafe</Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoadingLocations ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-32 w-full" />
+                  ))}
+                </div>
+              ) : (partnerLocations && partnerLocations.length > 0) ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {partnerLocations.map((loc) => (
+                    <Card key={loc.id} className="group transition-all hover:shadow-lg hover:border-primary/30 bg-white border rounded-xl">
+                      <CardHeader className="p-4 pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="font-semibold break-words whitespace-normal flex-1">{loc.name}</div>
+                          {typeof loc.distance_km === "number" && (
+                            <Badge variant="outline" className="shrink-0 whitespace-nowrap">~{loc.distance_km.toFixed(1)} km</Badge>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="px-4 pb-2">
+                        <div className="text-sm text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          <span className="break-words whitespace-normal">{loc.address}</span>
+                        </div>
+                        {(() => {
+                          const pkgs = (cafePackages || []).filter(p => String(p.location_id) === String(loc.id));
+                          if (pkgs.length === 0) return null;
+                          const formatPrice = (price: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(price);
+                          return (
+                            <div className="mt-3 space-y-3">
+                              {pkgs.slice(0, 3).map(p => (
+                                <div key={p.id} className="space-y-1">
+                                  <div className="text-sm font-medium break-words whitespace-normal">{p.name}</div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="secondary">{p.system === "private" ? "Private" : "Grup"}</Badge>
+                                    <Badge variant="outline">{p.mode === "online" ? "Online" : "Offline"}</Badge>
+                                    <div className="text-sm text-muted-foreground">{formatPrice(p.price)}</div>
+                                  </div>
+                                </div>
+                              ))}
+                              {pkgs.length > 3 && (
+                                <div className="text-xs text-muted-foreground">+{pkgs.length - 3} paket lainnya</div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </CardContent>
+                      <CardFooter className="p-4 pt-0">
+                        <div className="grid grid-cols-1 gap-2 w-full">
+                          {loc.maps_link && (
+                            <a href={loc.maps_link} target="_blank" rel="noopener noreferrer" className="w-full">
+                              <Button variant="outline" size="sm" className="w-full">Buka Maps</Button>
+                            </a>
+                          )}
+                          <Button
+                            size="sm"
+                            className="w-full bg-gradient-primary hover:opacity-90"
+                            onClick={() => {
+                              updateFilter("subject_id", "all");
+                              updateFilter("level_id", "all");
+                              updateFilter("mode", "all");
+                              updateFilter("system", "all");
+                              updateFilter("place", "partner_cafe");
+                              updateFilter("location_id", loc.id);
+                            }}
+                          >
+                            Lihat Paket di Cafe Ini
+                          </Button>
+                        </div>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">Belum ada lokasi cafe terdaftar di kota ini.</div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Results */}
         {isLoading ? (

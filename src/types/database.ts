@@ -35,10 +35,13 @@ export interface PartnerLocation {
   address: string;
   operating_hours: string | null;
   maps_link?: string | null;
+  latitude?: number;
+  longitude?: number;
   is_active: boolean;
   created_at: string;
   updated_at?: string;
   city?: City;
+  distance_km?: number;
 }
 
 export interface TutoringPackage {

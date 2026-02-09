@@ -1,5 +1,5 @@
 import { MessageCircle } from "lucide-react";
-import { ADMIN_WHATSAPP_NUMBER } from "@/lib/constants";
+import { getAdminWhatsAppNumber } from "@/lib/constants";
 
 interface WhatsAppButtonProps {
   message?: string;
@@ -13,7 +13,7 @@ export function WhatsAppButton({
   floating = false 
 }: WhatsAppButtonProps) {
   const encodedMessage = encodeURIComponent(message);
-  const whatsappUrl = `https://wa.me/${ADMIN_WHATSAPP_NUMBER}?text=${encodedMessage}`;
+  const whatsappUrl = `https://wa.me/${getAdminWhatsAppNumber()}?text=${encodedMessage}`;
 
   if (floating) {
     return (

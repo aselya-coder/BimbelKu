@@ -1,56 +1,149 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Eye, MessageCircle, Loader2, Search, Filter } from "lucide-react";
+import { Eye, MessageCircle, Loader2, Search, Filter, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { mockService } from "@/lib/mockService";
-import { REGISTRATION_STATUSES, ADMIN_WHATSAPP_NUMBER } from "@/lib/constants";
-import type { Registration, RegistrationStatus } from "@/types/database";
+import { REGISTRATION_STATUSES, ADMIN_WHATSAPP_NUMBER, DAYS_OF_WEEK } from "@/lib/constants";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+import type { Registration, RegistrationStatus, Schedule, TutoringPackage } from "@/types/database";
 
 export default function AdminRegistrationsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<RegistrationStatus | "all">("all");
   const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [newStatus, setNewStatus] = useState<RegistrationStatus>("new");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createData, setCreateData] = useState({
+    student_name: "",
+    whatsapp_number: "",
+    email: "",
+    package_id: "",
+    city: "",
+    preferred_schedule: "",
+    detailed_location: "",
+    status: "new" as RegistrationStatus,
+  });
+
+  const { data: packages } = useQuery({
+    queryKey: ["admin-packages-select"],
+    queryFn: async () => {
+      if (isSupabaseConfigured) {
+        try {
+          const { data, error } = await supabase
+            .from("tutoring_packages")
+            .select("id,name")
+            .eq("is_active", true)
+            .order("name");
+          if (error) throw error;
+          return data as Pick<TutoringPackage, "id" | "name">[];
+        } catch {
+          const items = mockService
+            .packages
+            .getAll()
+            .filter(p => p.is_active)
+            .map(p => ({ id: p.id, name: p.name }));
+          return items as Pick<TutoringPackage, "id" | "name">[];
+        }
+      }
+      const items = mockService
+        .packages
+        .getAll()
+        .filter(p => p.is_active)
+        .map(p => ({ id: p.id, name: p.name }));
+      return items as Pick<TutoringPackage, "id" | "name">[];
+    },
+  });
 
   const { data: registrations, isLoading } = useQuery({
     queryKey: ["admin-registrations", statusFilter],
     queryFn: async () => {
-      // Simulate network delay
+      if (isSupabaseConfigured) {
+        try {
+          let query = supabase
+            .from("registrations")
+            .select("id, student_name, whatsapp_number, email, city, preferred_schedule, detailed_location, status, admin_notes, created_at, updated_at, package:tutoring_packages(*)")
+            .order("created_at", { ascending: false });
+          if (statusFilter && statusFilter !== "all") query = query.eq("status", statusFilter as RegistrationStatus);
+          const { data, error } = await query;
+          if (error) throw error;
+          return (data as Registration[]);
+        } catch {
+          // fallback to mock
+        }
+      }
       await new Promise(resolve => setTimeout(resolve, 500));
-      
       let data = mockService.registrations.getAll();
-
       if (statusFilter && statusFilter !== "all") {
         data = data.filter(reg => reg.status === statusFilter);
       }
-      
-      // Sort by created_at descending
       data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
       return data as Registration[];
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, status, notes }: { id: string; status: RegistrationStatus; notes: string }) => {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      return mockService.registrations.update(id, { 
-        status, 
-        admin_notes: notes || null 
+    mutationFn: async ({ id, status, notes, package_id }: { id: string; status: RegistrationStatus; notes: string; package_id: string }) => {
+      let assignedLabel: string | null = null;
+      if ((status === "contacted" || status === "active") && package_id && isSupabaseConfigured) {
+        const { data, error } = await supabase
+          .from("schedules")
+          .select("*")
+          .eq("package_id", package_id)
+          .eq("is_available", true)
+          .order("day_of_week")
+          .order("start_time");
+        if (!error && Array.isArray(data)) {
+          const available = (data as Schedule[]).find((s) => {
+            const ms = typeof s.max_students === "number" ? s.max_students : null;
+            const cs = typeof s.current_students === "number" ? s.current_students : 0;
+            return ms === null || cs < ms;
+          });
+          if (available) {
+            const dayLabel = DAYS_OF_WEEK.find(d => d.value === available.day_of_week)?.label || String(available.day_of_week);
+            assignedLabel = `${dayLabel} ${available.start_time}-${available.end_time}`;
+            const cs = typeof available.current_students === "number" ? available.current_students : 0;
+            const ms = typeof available.max_students === "number" ? available.max_students : null;
+            const willFull = ms !== null && cs + 1 >= ms;
+            await supabase
+              .from("schedules")
+              .update({ current_students: cs + 1, is_available: willFull ? false : true })
+              .eq("id", available.id);
+            queryClient.invalidateQueries({ queryKey: ["admin-schedules"] });
+          }
+        }
+      }
+
+      if (isSupabaseConfigured) {
+        const payload: Database["public"]["Tables"]["registrations"]["Update"] = { status, admin_notes: notes || null };
+        if (assignedLabel) payload.preferred_schedule = assignedLabel;
+        const { error } = await supabase
+          .from("registrations")
+          .update(payload)
+          .eq("id", id);
+        if (error) throw error;
+        return;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return mockService.registrations.update(id, {
+        status,
+        admin_notes: notes || null,
+        preferred_schedule: assignedLabel || undefined,
       });
     },
     onSuccess: () => {
@@ -60,6 +153,78 @@ export default function AdminRegistrationsPage() {
     },
     onError: () => {
       toast({ title: "Gagal memperbarui", variant: "destructive" });
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const name = createData.student_name.trim();
+      const phone = createData.whatsapp_number.trim();
+      const city = createData.city.trim();
+      if (!name || !phone || !city) throw new Error("Nama, WhatsApp, dan Kota wajib");
+      if (!/^\+?\d{8,15}$/.test(phone.replace(/\s|-/g, ""))) throw new Error("Format nomor WhatsApp tidak valid");
+
+      const pkg = createData.package_id.trim();
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const pkgIdToSend = pkg && uuidRegex.test(pkg) ? pkg : undefined;
+      if (pkg && !pkgIdToSend) throw new Error("ID Paket harus UUID valid");
+
+      if (isSupabaseConfigured) {
+        const { error } = await supabase
+          .from("registrations")
+          .insert([{ 
+            package_id: pkgIdToSend,
+            student_name: name,
+            whatsapp_number: phone,
+            email: createData.email || null,
+            city,
+            preferred_schedule: createData.preferred_schedule || null,
+            detailed_location: createData.detailed_location || null,
+            status: createData.status,
+          }]);
+        if (error) throw error;
+        return;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return mockService.registrations.create({
+        package_id: pkgIdToSend || "",
+        student_name: name,
+        whatsapp_number: phone,
+        email: createData.email || null,
+        city,
+        preferred_schedule: createData.preferred_schedule || null,
+        detailed_location: createData.detailed_location || null,
+        status: createData.status,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-registrations"] });
+      toast({ title: "Pendaftaran ditambahkan" });
+      setIsCreateOpen(false);
+      setCreateData({ student_name: "", whatsapp_number: "", email: "", package_id: "", city: "", preferred_schedule: "", detailed_location: "", status: "new" });
+    },
+    onError: (err: unknown) => {
+      toast({ title: "Gagal menambah pendaftaran", description: String(err), variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (isSupabaseConfigured) {
+        const { error } = await supabase.from("registrations").delete().eq("id", id);
+        if (error) throw error;
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return mockService.registrations.delete(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-registrations"] });
+      toast({ title: "Pendaftaran dihapus" });
+    },
+    onError: (err: unknown) => {
+      toast({ title: "Gagal menghapus", description: String(err), variant: "destructive" });
     },
   });
 
@@ -75,6 +240,7 @@ export default function AdminRegistrationsPage() {
         id: selectedRegistration.id,
         status: newStatus,
         notes: adminNotes,
+        package_id: selectedRegistration.package_id,
       });
     }
   };
@@ -111,9 +277,88 @@ export default function AdminRegistrationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Pendaftaran</h1>
-        <p className="text-muted-foreground">Kelola pendaftaran siswa bimbel</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Pendaftaran</h1>
+          <p className="text-muted-foreground">Kelola pendaftaran siswa bimbel</p>
+        </div>
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => setIsCreateOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Tambah Pendaftaran
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Tambah Pendaftaran</DialogTitle>
+              <DialogDescription>Isi data pendaftaran siswa.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Nama Siswa *</Label>
+                  <Input value={createData.student_name} onChange={(e) => setCreateData({ ...createData, student_name: e.target.value })} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>WhatsApp *</Label>
+                  <Input value={createData.whatsapp_number} onChange={(e) => setCreateData({ ...createData, whatsapp_number: e.target.value })} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input value={createData.email} onChange={(e) => setCreateData({ ...createData, email: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Kota *</Label>
+                  <Input value={createData.city} onChange={(e) => setCreateData({ ...createData, city: e.target.value })} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Paket</Label>
+                  <Select value={createData.package_id} onValueChange={(v) => setCreateData({ ...createData, package_id: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Opsional" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {packages?.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Jadwal Pilihan</Label>
+                  <Input value={createData.preferred_schedule} onChange={(e) => setCreateData({ ...createData, preferred_schedule: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Alamat Lengkap</Label>
+                <Textarea value={createData.detailed_location} onChange={(e) => setCreateData({ ...createData, detailed_location: e.target.value })} rows={3} />
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={createData.status} onValueChange={(v) => setCreateData({ ...createData, status: v as RegistrationStatus })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REGISTRATION_STATUSES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="outline">Batal</Button>
+                </DialogClose>
+                <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+                  {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Simpan
+                </Button>
+              </DialogFooter>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Filters */}
@@ -129,7 +374,7 @@ export default function AdminRegistrationsPage() {
                 className="pl-9"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as RegistrationStatus | "all")}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <Filter className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="Filter status" />
@@ -179,7 +424,7 @@ export default function AdminRegistrationsPage() {
                     <TableCell className="font-medium">{reg.student_name}</TableCell>
                     <TableCell>{reg.whatsapp_number}</TableCell>
                     <TableCell className="max-w-[200px] truncate">
-                      {(reg.package as any)?.name || "-"}
+                      {reg.package?.name ?? "-"}
                     </TableCell>
                     <TableCell>{reg.city}</TableCell>
                     <TableCell>{getStatusBadge(reg.status)}</TableCell>
@@ -199,6 +444,27 @@ export default function AdminRegistrationsPage() {
                         >
                           <MessageCircle className="h-4 w-4" />
                         </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Hapus Pendaftaran?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Apakah Anda yakin ingin menghapus pendaftaran "{reg.student_name}"?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteMutation.mutate(reg.id)}>
+                                Hapus
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -214,6 +480,7 @@ export default function AdminRegistrationsPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Detail Pendaftaran</DialogTitle>
+            <DialogDescription>Ubah status dan catatan pendaftaran.</DialogDescription>
           </DialogHeader>
           {selectedRegistration && (
             <div className="space-y-4">
@@ -234,7 +501,7 @@ export default function AdminRegistrationsPage() {
                 )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Paket</span>
-                  <span className="font-medium">{(selectedRegistration.package as any)?.name || "-"}</span>
+                  <span className="font-medium">{selectedRegistration.package?.name ?? "-"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Kota</span>

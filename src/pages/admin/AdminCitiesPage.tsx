@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { mockService } from "@/lib/mockService";
+import { supabase } from "@/integrations/supabase/client";
 import type { City } from "@/types/database";
 
 export default function AdminCitiesPage() {
@@ -20,11 +21,19 @@ export default function AdminCitiesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCity, setEditingCity] = useState<City | null>(null);
   const [formData, setFormData] = useState({ name: "", is_active: true });
+  const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   const { data: cities, isLoading } = useQuery({
     queryKey: ["admin-cities"],
     queryFn: async () => {
-      // Simulate network delay
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase
+          .from("cities")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return (data as City[]) || [];
+      }
       await new Promise(resolve => setTimeout(resolve, 500));
       return mockService.cities.getAll();
     },
@@ -32,43 +41,61 @@ export default function AdminCitiesPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData & { id?: string }) => {
-      // Simulate network delay
+      if (isSupabaseConfigured) {
+        const payload = { name: data.name, is_active: data.is_active };
+        if (data.id) {
+          const { error } = await supabase
+            .from("cities")
+            .update(payload)
+            .eq("id", data.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from("cities")
+            .insert([payload]);
+          if (error) throw error;
+        }
+        return;
+      }
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+      const payload = { name: data.name, is_active: data.is_active };
       if (data.id) {
-        return mockService.cities.update(data.id, {
-          name: data.name,
-          is_active: data.is_active
-        });
+        return mockService.cities.update(data.id, payload);
       } else {
-        return mockService.cities.create({
-          name: data.name,
-          is_active: data.is_active
-        });
+        return mockService.cities.create(payload);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-cities"] });
+      queryClient.invalidateQueries({ queryKey: ["cities"] });
       toast({ title: editingCity ? "Berhasil diperbarui" : "Berhasil ditambahkan" });
       handleCloseDialog();
     },
-    onError: () => {
-      toast({ title: "Gagal menyimpan", variant: "destructive" });
+    onError: (err: unknown) => {
+      toast({ title: "Gagal menyimpan", description: String(err), variant: "destructive" });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Simulate network delay
+      if (isSupabaseConfigured) {
+        const { error } = await supabase
+          .from("cities")
+          .delete()
+          .eq("id", id);
+        if (error) throw error;
+        return;
+      }
       await new Promise(resolve => setTimeout(resolve, 500));
       mockService.cities.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-cities"] });
+      queryClient.invalidateQueries({ queryKey: ["cities"] });
       toast({ title: "Berhasil dihapus" });
     },
-    onError: () => {
-      toast({ title: "Gagal menghapus", variant: "destructive" });
+    onError: (err: unknown) => {
+      toast({ title: "Gagal menghapus", description: String(err), variant: "destructive" });
     },
   });
 
@@ -181,6 +208,7 @@ export default function AdminCitiesPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingCity ? "Edit Kota" : "Tambah Kota"}</DialogTitle>
+            <DialogDescription>Isi data kota layanan bimbel.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">

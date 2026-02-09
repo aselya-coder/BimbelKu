@@ -36,6 +36,8 @@ create table public.partner_locations (
   address text not null,
   operating_hours text,
   maps_link text,
+  latitude numeric,
+  longitude numeric,
   is_active boolean default true,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now())

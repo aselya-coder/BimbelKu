@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { GraduationCap, MapPin, Phone, Mail } from "lucide-react";
-import { APP_NAME, ADMIN_WHATSAPP_NUMBER } from "@/lib/constants";
+import { APP_NAME, getAdminWhatsAppNumber } from "@/lib/constants";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -64,12 +64,12 @@ export function Footer() {
               <li className="flex items-center gap-2 text-sm">
                 <Phone className="h-4 w-4 text-primary" />
                 <a 
-                  href={`https://wa.me/${ADMIN_WHATSAPP_NUMBER}`}
+                  href={`https://wa.me/${getAdminWhatsAppNumber()}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-white transition-colors"
                 >
-                  +62 812-3456-7890
+                  +{getAdminWhatsAppNumber()}
                 </a>
               </li>
               <li className="flex items-center gap-2 text-sm">

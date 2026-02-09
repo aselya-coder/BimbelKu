@@ -6,18 +6,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { mockService } from "@/lib/mockService";
+import { supabase } from "@/integrations/supabase/client";
 import type { Testimonial } from "@/types/database";
 
 export default function AdminTestimonialsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
   const [formData, setFormData] = useState({ 
@@ -31,25 +33,57 @@ export default function AdminTestimonialsPage() {
   const { data: testimonials, isLoading } = useQuery({
     queryKey: ["admin-testimonials"],
     queryFn: async () => {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (isSupabaseConfigured) {
+        try {
+          const { data, error } = await supabase
+            .from("testimonials")
+            .select("*")
+            .order("created_at", { ascending: false });
+          if (error) throw error;
+          return (data as Testimonial[]) || [];
+        } catch {
+          // fallback to mock
+        }
+      }
+      await new Promise(resolve => setTimeout(resolve, 300));
       return mockService.testimonials.getAll();
     },
   });
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData & { id?: string }) => {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      const name = data.name.trim();
+      const content = data.content.trim();
+      const rating = parseInt(data.rating);
+      if (!name || !content) throw new Error("Nama dan isi testimoni wajib");
+      if (!Number.isFinite(rating) || rating < 1 || rating > 5) throw new Error("Rating harus 1-5");
+
       const payload = {
-        name: data.name,
-        role: data.role || null,
-        content: data.content,
-        rating: parseInt(data.rating),
+        name,
+        role: data.role ? data.role.trim() : null,
+        content,
+        rating,
         is_active: data.is_active,
       };
 
+      if (isSupabaseConfigured) {
+        if (data.id) {
+          const { error } = await supabase
+            .from("testimonials")
+            .update(payload)
+            .eq("id", data.id);
+          if (error) throw error;
+          return;
+        } else {
+          const { error } = await supabase
+            .from("testimonials")
+            .insert([payload]);
+          if (error) throw error;
+          return;
+        }
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 300));
       if (data.id) {
         return mockService.testimonials.update(data.id, payload);
       } else {
@@ -61,23 +95,27 @@ export default function AdminTestimonialsPage() {
       toast({ title: editingTestimonial ? "Berhasil diperbarui" : "Berhasil ditambahkan" });
       handleCloseDialog();
     },
-    onError: () => {
-      toast({ title: "Gagal menyimpan", variant: "destructive" });
+    onError: (err: unknown) => {
+      toast({ title: "Gagal menyimpan", description: String(err), variant: "destructive" });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (isSupabaseConfigured) {
+        const { error } = await supabase.from("testimonials").delete().eq("id", id);
+        if (error) throw error;
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 300));
       return mockService.testimonials.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-testimonials"] });
       toast({ title: "Berhasil dihapus" });
     },
-    onError: () => {
-      toast({ title: "Gagal menghapus", variant: "destructive" });
+    onError: (err: unknown) => {
+      toast({ title: "Gagal menghapus", description: String(err), variant: "destructive" });
     },
   });
 
@@ -126,6 +164,7 @@ export default function AdminTestimonialsPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingTestimonial ? "Edit Testimoni" : "Tambah Testimoni"}</DialogTitle>
+              <DialogDescription>Isi detail testimoni yang akan ditampilkan.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">

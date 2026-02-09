@@ -3,11 +3,15 @@ import {
   GraduationCap, LayoutDashboard, BookOpen, MapPin, Package, 
   Calendar, Users, LogOut, Menu, X, Building2, Star
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, applyAppearanceSettings } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { mockService } from "@/lib/mockService";
 
 const sidebarLinks = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -25,6 +29,10 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const prevRegCount = useRef<number>(mockService.registrations.getAll().length);
+  const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   const handleSignOut = async () => {
     await signOut();
@@ -35,6 +43,47 @@ export function AdminLayout() {
     if (href === "/admin") return location.pathname === "/admin";
     return location.pathname.startsWith(href);
   };
+
+  useEffect(() => {
+    applyAppearanceSettings();
+
+    if (isSupabaseConfigured) {
+      const channel = supabase
+        .channel("registrations_new")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "registrations" }, (payload) => {
+          const name = (payload.new as { student_name?: string })?.student_name || "Pendaftaran Baru";
+          toast({ title: "Pendaftaran Baru", description: name });
+          queryClient.invalidateQueries({ queryKey: ["admin-registrations"] });
+          queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+
+    const check = () => {
+      const regs = mockService.registrations.getAll();
+      if (regs.length > prevRegCount.current) {
+        const latest = regs[0];
+        toast({ title: "Pendaftaran Baru", description: latest?.student_name });
+        queryClient.invalidateQueries({ queryKey: ["admin-registrations"] });
+        queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+      }
+      prevRegCount.current = regs.length;
+    };
+
+    const interval = setInterval(check, 2000);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "bimbelku_registrations") check();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [toast, queryClient, isSupabaseConfigured]);
 
   return (
     <div className="flex min-h-screen">
@@ -93,9 +142,9 @@ export function AdminLayout() {
 
           {/* User & Logout */}
           <div className="border-t border-sidebar-border p-4">
-            <div className="mb-3 text-xs text-sidebar-foreground/60 truncate">
-              {user?.email}
-            </div>
+          <div className="mb-3 text-xs text-sidebar-foreground/60 truncate">
+            {user ? (user.email ?? (typeof user.user_metadata?.name === "string" ? user.user_metadata.name : "Admin")) : ""}
+          </div>
             <Button 
               variant="ghost" 
               className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"

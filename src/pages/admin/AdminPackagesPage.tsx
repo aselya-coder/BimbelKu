@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -53,7 +53,7 @@ const initialFormData: PackageFormData = {
 };
 
 // Check if Supabase is configured
-const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 export default function AdminPackagesPage() {
   const queryClient = useQueryClient();
@@ -66,21 +66,25 @@ export default function AdminPackagesPage() {
     queryKey: ["admin-packages"],
     queryFn: async () => {
       if (isSupabaseConfigured) {
-        const { data, error } = await supabase
-          .from("tutoring_packages")
-          .select(`
-            *,
-            subject:subjects(*),
-            level:education_levels(*),
-            city:cities(*),
-            location:partner_locations(*)
-          `)
-          .order("created_at", { ascending: false });
-        if (error) throw error;
-        return data as TutoringPackage[];
+        try {
+          const { data, error } = await supabase
+            .from("tutoring_packages")
+            .select(`
+              *,
+              subject:subjects(*),
+              level:education_levels(*),
+              city:cities(*),
+              location:partner_locations(*)
+            `)
+            .order("created_at", { ascending: false });
+          if (error) throw error;
+          return data as TutoringPackage[];
+        } catch {
+          await new Promise(resolve => setTimeout(resolve, 300));
+          return mockService.packages.getAll();
+        }
       }
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
       return mockService.packages.getAll();
     },
   });
@@ -89,9 +93,13 @@ export default function AdminPackagesPage() {
     queryKey: ["admin-subjects-select"],
     queryFn: async () => {
       if (isSupabaseConfigured) {
-        const { data, error } = await supabase.from("subjects").select("*").eq("is_active", true);
-        if (error) throw error;
-        return data as Subject[];
+        try {
+          const { data, error } = await supabase.from("subjects").select("*").eq("is_active", true);
+          if (error) throw error;
+          return data as Subject[];
+        } catch {
+          return mockService.subjects.getAll().filter(s => s.is_active);
+        }
       }
       return mockService.subjects.getAll().filter(s => s.is_active);
     },
@@ -101,9 +109,13 @@ export default function AdminPackagesPage() {
     queryKey: ["admin-levels-select"],
     queryFn: async () => {
       if (isSupabaseConfigured) {
-        const { data, error } = await supabase.from("education_levels").select("*").order("sort_order");
-        if (error) throw error;
-        return data as EducationLevel[];
+        try {
+          const { data, error } = await supabase.from("education_levels").select("*").order("sort_order");
+          if (error) throw error;
+          return data as EducationLevel[];
+        } catch {
+          return mockService.educationLevels.getAll();
+        }
       }
       return mockService.educationLevels.getAll();
     },
@@ -113,9 +125,13 @@ export default function AdminPackagesPage() {
     queryKey: ["admin-cities-select"],
     queryFn: async () => {
       if (isSupabaseConfigured) {
-        const { data, error } = await supabase.from("cities").select("*").eq("is_active", true);
-        if (error) throw error;
-        return data as City[];
+        try {
+          const { data, error } = await supabase.from("cities").select("*").eq("is_active", true);
+          if (error) throw error;
+          return data as City[];
+        } catch {
+          return mockService.cities.getAll().filter(c => c.is_active);
+        }
       }
       return mockService.cities.getAll().filter(c => c.is_active);
     },
@@ -125,11 +141,19 @@ export default function AdminPackagesPage() {
     queryKey: ["admin-locations-select", formData.city_id],
     queryFn: async () => {
       if (isSupabaseConfigured) {
-        let query = supabase.from("partner_locations").select("*").eq("is_active", true);
-        if (formData.city_id) query = query.eq("city_id", formData.city_id);
-        const { data, error } = await query;
-        if (error) throw error;
-        return data as PartnerLocation[];
+        try {
+          let query = supabase.from("partner_locations").select("*").eq("is_active", true);
+          if (formData.city_id) query = query.eq("city_id", formData.city_id);
+          const { data, error } = await query;
+          if (error) throw error;
+          return data as PartnerLocation[];
+        } catch {
+          let locations = mockService.locations.getAll().filter(l => l.is_active);
+          if (formData.city_id) {
+            locations = locations.filter(l => l.city_id === formData.city_id);
+          }
+          return locations;
+        }
       }
 
       let locations = mockService.locations.getAll().filter(l => l.is_active);
@@ -272,6 +296,7 @@ export default function AdminPackagesPage() {
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingPackage ? "Edit Paket" : "Tambah Paket"}</DialogTitle>
+              <DialogDescription>Isi form paket bimbingan belajar.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
@@ -476,6 +501,12 @@ export default function AdminPackagesPage() {
                         <div className="text-xs text-muted-foreground capitalize">
                           {pkg.mode} {pkg.system}
                         </div>
+                        {pkg.place && (
+                          <div className="text-xs text-muted-foreground">
+                            Tempat: {LEARNING_PLACES.find(p => p.value === pkg.place)?.label}
+                            {pkg.place === "partner_cafe" && pkg.location?.name ? ` • ${pkg.location.name}` : ""}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>{formatPrice(pkg.price)}</TableCell>
