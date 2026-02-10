@@ -10,8 +10,7 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.V
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
-    storage: localStorage,
-    persistSession: true,
+    persistSession: false,
     autoRefreshToken: true,
   }
 });

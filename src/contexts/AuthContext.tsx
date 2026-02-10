@@ -22,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
+  const idleMinutes = Number(import.meta.env.VITE_ADMIN_IDLE_TIMEOUT_MINUTES) || 120;
 
   useEffect(() => {
     // 1. Check Supabase Session
@@ -64,6 +65,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, [isSupabaseConfigured]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      localStorage.removeItem("bimbelku_user");
+    }
+  }, [isSupabaseConfigured]);
+
+  useEffect(() => {
+    if (!user) return;
+    let lastActive = Date.now();
+    const updateActivity = () => { lastActive = Date.now(); };
+    const checkIdle = async () => {
+      const diff = Date.now() - lastActive;
+      if (diff > idleMinutes * 60 * 1000) {
+        await signOut();
+      }
+    };
+    const interval = setInterval(checkIdle, 60000);
+    window.addEventListener("mousemove", updateActivity);
+    window.addEventListener("keydown", updateActivity);
+    window.addEventListener("click", updateActivity);
+    window.addEventListener("touchstart", updateActivity);
+    const onOffline = async () => { await signOut(); };
+    window.addEventListener("offline", onOffline);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("mousemove", updateActivity);
+      window.removeEventListener("keydown", updateActivity);
+      window.removeEventListener("click", updateActivity);
+      window.removeEventListener("touchstart", updateActivity);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, [user, idleMinutes]);
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
