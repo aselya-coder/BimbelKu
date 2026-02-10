@@ -228,6 +228,31 @@ export const mockService = {
 
   educationLevels: {
     getAll: () => getData<EducationLevel>(KEYS.LEVELS),
+    create: (data: Omit<EducationLevel, "id">) => {
+      const items = getData<EducationLevel>(KEYS.LEVELS);
+      const newItem: EducationLevel = { 
+        id: crypto.randomUUID(),
+        name: data.name,
+        code: data.code,
+        sort_order: data.sort_order ?? (items.length ? Math.max(...items.map(i => i.sort_order)) + 1 : 1)
+      };
+      saveData(KEYS.LEVELS, [...items, newItem]);
+      return newItem;
+    },
+    update: (id: string, data: Partial<EducationLevel>) => {
+      const items = getData<EducationLevel>(KEYS.LEVELS);
+      const index = items.findIndex(item => item.id === id);
+      if (index !== -1) {
+        items[index] = { ...items[index], ...data } as EducationLevel;
+        saveData(KEYS.LEVELS, items);
+        return items[index];
+      }
+      return null;
+    },
+    delete: (id: string) => {
+      const items = getData<EducationLevel>(KEYS.LEVELS).filter(item => item.id !== id);
+      saveData(KEYS.LEVELS, items);
+    }
   },
 
   cities: {

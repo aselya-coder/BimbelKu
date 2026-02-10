@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   GraduationCap, LayoutDashboard, BookOpen, MapPin, Package, 
-  Calendar, Users, LogOut, Menu, X, Building2, Star
+  Calendar, Users, LogOut, Menu, X, Building2, Star, Layers
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { mockService } from "@/lib/mockService";
 const sidebarLinks = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/subjects", label: "Mata Pelajaran", icon: BookOpen },
+  { href: "/admin/levels", label: "Jenjang", icon: Layers },
   { href: "/admin/cities", label: "Kota", icon: MapPin },
   { href: "/admin/locations", label: "Lokasi Partner", icon: Building2 },
   { href: "/admin/packages", label: "Paket Bimbel", icon: Package },

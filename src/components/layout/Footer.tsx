@@ -53,6 +53,7 @@ export function Footer() {
               <li className="text-sm">SD (Sekolah Dasar)</li>
               <li className="text-sm">SMP (Sekolah Menengah Pertama)</li>
               <li className="text-sm">SMA (Sekolah Menengah Atas)</li>
+              <li className="text-sm">SMK (Sekolah Menengah Kejuruan)</li>
               <li className="text-sm">Umum</li>
             </ul>
           </div>
