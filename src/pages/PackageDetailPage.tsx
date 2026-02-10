@@ -196,6 +196,16 @@ export default function PackageDetailPage() {
                     <div className="text-sm text-muted-foreground">
                       <p className="font-medium text-foreground">{pkg.location.name}</p>
                       <p>{pkg.location.address}</p>
+                      <div className="mt-1">
+                        <a
+                          href={pkg.location.maps_link || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pkg.location.address || pkg.location.name)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline text-xs"
+                        >
+                          Buka di Google Maps
+                        </a>
+                      </div>
                       {pkg.location.operating_hours && (
                         <p className="mt-1">Jam operasional: {pkg.location.operating_hours}</p>
                       )}

@@ -27,6 +27,7 @@ export default function AdminLocationsPage() {
     name: "", 
     address: "", 
     operating_hours: "", 
+    maps_link: "", 
     is_active: true 
   });
 
@@ -77,6 +78,7 @@ export default function AdminLocationsPage() {
         name: data.name,
         address: data.address,
         operating_hours: data.operating_hours || null,
+        maps_link: (data.maps_link || "").trim() ? data.maps_link : null,
         is_active: data.is_active,
       };
 
@@ -144,6 +146,7 @@ export default function AdminLocationsPage() {
         name: location.name,
         address: location.address,
         operating_hours: location.operating_hours || "",
+        maps_link: location.maps_link || "",
         is_active: location.is_active
       });
     } else {
@@ -153,6 +156,7 @@ export default function AdminLocationsPage() {
         name: "", 
         address: "", 
         operating_hours: "", 
+        maps_link: "",
         is_active: true 
       });
     }
@@ -167,6 +171,7 @@ export default function AdminLocationsPage() {
       name: "", 
       address: "", 
       operating_hours: "", 
+      maps_link: "",
       is_active: true 
     });
   };
@@ -211,7 +216,19 @@ export default function AdminLocationsPage() {
                   <TableRow key={location.id}>
                     <TableCell className="font-medium">{location.name}</TableCell>
                     <TableCell>{location.city?.name || "-"}</TableCell>
-                    <TableCell className="max-w-xs truncate">{location.address}</TableCell>
+                    <TableCell className="max-w-xs">
+                      <div className="truncate">{location.address}</div>
+                      <div className="mt-1 text-xs">
+                        <a
+                          href={location.maps_link || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.address || location.name)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          Lihat di Maps
+                        </a>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
                         location.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
@@ -319,6 +336,16 @@ export default function AdminLocationsPage() {
                 value={formData.operating_hours}
                 onChange={(e) => setFormData({ ...formData, operating_hours: e.target.value })}
                 placeholder="Contoh: 10:00 - 22:00"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="maps_link">Link Maps</Label>
+              <Input
+                id="maps_link"
+                value={formData.maps_link}
+                onChange={(e) => setFormData({ ...formData, maps_link: e.target.value })}
+                placeholder="https://goo.gl/maps/... atau https://maps.google.com/?q=..."
               />
             </div>
 
