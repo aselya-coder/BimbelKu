@@ -358,22 +358,22 @@ export default function AdminPackagesPage() {
                       <Select value={formData.place} onValueChange={(v) => setFormData({ ...formData, place: v as LearningPlace })}>
                         <SelectTrigger><SelectValue placeholder="Pilih tempat" /></SelectTrigger>
                         <SelectContent>
-                          {LEARNING_PLACES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                          {LEARNING_PLACES.filter((p) => p.value === "student_home").map((p) => (
+                            <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
 
-                    {formData.place === "partner_cafe" && (
-                      <div className="space-y-2">
-                        <Label>Lokasi Partner</Label>
-                        <Select value={formData.location_id} onValueChange={(v) => setFormData({ ...formData, location_id: v })}>
-                          <SelectTrigger><SelectValue placeholder="Pilih lokasi" /></SelectTrigger>
-                          <SelectContent>
-                            {locations?.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
+                    <div className="space-y-2">
+                      <Label>Lokasi Partner</Label>
+                      <Select value={formData.location_id} onValueChange={(v) => setFormData({ ...formData, location_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Pilih lokasi" /></SelectTrigger>
+                        <SelectContent>
+                          {locations?.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </>
                 )}
 
@@ -501,10 +501,9 @@ export default function AdminPackagesPage() {
                         <div className="text-xs text-muted-foreground capitalize">
                           {pkg.mode} {pkg.system}
                         </div>
-                        {pkg.place && (
+                        {pkg.place === "student_home" && (
                           <div className="text-xs text-muted-foreground">
                             Tempat: {LEARNING_PLACES.find(p => p.value === pkg.place)?.label}
-                            {pkg.place === "partner_cafe" && pkg.location?.name ? ` • ${pkg.location.name}` : ""}
                           </div>
                         )}
                       </div>

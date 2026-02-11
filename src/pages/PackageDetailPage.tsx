@@ -92,7 +92,7 @@ export default function PackageDetailPage() {
               <Users className="h-3 w-3" />
               {getSystemLabel(pkg.system)}
             </Badge>
-            {pkg.place && (
+            {pkg.place === "student_home" && (
               <Badge variant="outline">{getPlaceLabel(pkg.place)}</Badge>
             )}
           </div>

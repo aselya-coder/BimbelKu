@@ -28,7 +28,6 @@ export default function PackagesPage() {
     city_id: filters.city_id || undefined,
     mode: filters.mode,
     system: filters.system,
-    place: filters.place,
     location_id: filters.location_id || undefined,
   });
 
@@ -36,7 +35,7 @@ export default function PackagesPage() {
   const { data: cities } = useCities();
   const { data: levels } = useEducationLevels();
   const { data: partnerLocations, isLoading: isLoadingLocations } = usePartnerLocations(filters.city_id || undefined);
-  const { data: cafePackages } = usePackages(filters.city_id ? { city_id: filters.city_id, place: "partner_cafe" } : undefined);
+  const { data: cityPackages } = usePackages(filters.city_id ? { city_id: filters.city_id } : undefined);
 
   const updateFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -217,7 +216,7 @@ export default function PackagesPage() {
                           <span className="break-words whitespace-normal">{loc.address}</span>
                         </div>
                         {(() => {
-                          const pkgs = (cafePackages || []).filter(p => String(p.location_id) === String(loc.id));
+                          const pkgs = (cityPackages || []).filter(p => String(p.location_id) === String(loc.id));
                           if (pkgs.length === 0) return null;
                           const formatPrice = (price: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(price);
                           return (
@@ -254,7 +253,6 @@ export default function PackagesPage() {
                               updateFilter("level_id", "all");
                               updateFilter("mode", "all");
                               updateFilter("system", "all");
-                              updateFilter("place", "partner_cafe");
                               updateFilter("location_id", loc.id);
                             }}
                           >
@@ -291,7 +289,11 @@ export default function PackagesPage() {
               </Card>
             ))}
           </div>
-        ) : packages?.length === 0 ? (
+        ) : ((packages || []).filter((p) => {
+          if (filters.place === "partner_cafe") return !!p.location_id;
+          if (filters.place === "student_home") return p.place === "student_home";
+          return true;
+        })).length === 0 ? (
           <Card className="p-12 text-center">
             <BookOpen className="mx-auto h-12 w-12 text-muted-foreground/50" />
             <h3 className="mt-4 text-lg font-medium">Tidak ada paket ditemukan</h3>
@@ -307,10 +309,18 @@ export default function PackagesPage() {
         ) : (
           <>
             <p className="mb-4 text-sm text-muted-foreground">
-              Menampilkan {packages?.length} paket
+              Menampilkan {((packages || []).filter((p) => {
+                if (filters.place === "partner_cafe") return !!p.location_id;
+                if (filters.place === "student_home") return p.place === "student_home";
+                return true;
+              })).length} paket
             </p>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {packages?.map((pkg) => (
+              {((packages || []).filter((p) => {
+                if (filters.place === "partner_cafe") return !!p.location_id;
+                if (filters.place === "student_home") return p.place === "student_home";
+                return true;
+              })).map((pkg) => (
                 <Card key={pkg.id} className="group overflow-hidden transition-all hover:shadow-lg hover:border-primary/30">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2">
@@ -338,7 +348,7 @@ export default function PackagesPage() {
                         <Users className="h-3 w-3" />
                         {getSystemLabel(pkg.system)}
                       </Badge>
-                      {pkg.place && (
+                      {pkg.place === "student_home" && (
                         <Badge variant="outline">{getPlaceLabel(pkg.place)}</Badge>
                       )}
                     </div>

@@ -24,7 +24,7 @@ export default function HomePage() {
   });
 
   const { data: partnerLocations, isLoading: isLoadingLocations } = usePartnerLocations(filters.city || undefined);
-  const { data: cafePackages } = usePackages(filters.city ? { city_id: filters.city, place: "partner_cafe" } : undefined);
+  const { data: cityPackages } = usePackages(filters.city ? { city_id: filters.city } : undefined);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -208,7 +208,7 @@ export default function HomePage() {
                             <span className="break-words whitespace-normal">{loc.address}</span>
                           </div>
                           {(() => {
-                            const pkgs = (cafePackages || []).filter(p => String(p.location_id) === String(loc.id));
+                            const pkgs = (cityPackages || []).filter(p => String(p.location_id) === String(loc.id));
                             if (pkgs.length === 0) return null;
                             return (
                               <div className="mt-3 space-y-3">
@@ -239,7 +239,6 @@ export default function HomePage() {
                             <Button size="sm" className="w-full bg-gradient-primary hover:opacity-90" onClick={() => {
                               const params = new URLSearchParams();
                               params.set("city", filters.city);
-                              params.set("place", "partner_cafe");
                               params.set("location", loc.id);
                               navigate(`/packages?${params.toString()}`);
                             }}>Lihat Paket di Cafe Ini</Button>
