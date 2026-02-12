@@ -180,6 +180,29 @@ export function usePartnerLocations(cityId?: string) {
 
         return filtered;
       }
+
+      let userCoords: { lat: number; lng: number } | null = null;
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          if (!navigator?.geolocation) return reject(new Error("geolocation_unavailable"));
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000 });
+        });
+        userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      } catch { void 0; }
+
+      if (userCoords) {
+        for (const loc of joinedLocations) {
+          if (typeof loc.latitude === "number" && typeof loc.longitude === "number") {
+            loc.distance_km = haversineDistance(userCoords.lat, userCoords.lng, loc.latitude, loc.longitude);
+          }
+        }
+        joinedLocations.sort((a, b) => {
+          const da = typeof a.distance_km === "number" ? a.distance_km : Number.POSITIVE_INFINITY;
+          const db = typeof b.distance_km === "number" ? b.distance_km : Number.POSITIVE_INFINITY;
+          return da - db;
+        });
+      }
+
       return joinedLocations;
     },
   });

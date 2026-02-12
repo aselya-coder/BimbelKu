@@ -35,7 +35,7 @@ export default function PackagesPage() {
   const { data: cities } = useCities();
   const { data: levels } = useEducationLevels();
   const { data: partnerLocations, isLoading: isLoadingLocations } = usePartnerLocations(filters.city_id || undefined);
-  const { data: cityPackages } = usePackages(filters.city_id ? { city_id: filters.city_id } : undefined);
+  const { data: allPackages } = usePackages();
 
   const updateFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -180,12 +180,12 @@ export default function PackagesPage() {
           </CardContent>
         </Card>
 
-        {/* Partner Locations by City */}
-        {filters.city_id && (
+        {/* Partner Locations */}
+        {(!filters.location_id && (filters.place === "partner_cafe" || filters.city_id)) && (
           <Card className="mb-8">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <div className="font-medium">Lokasi Belajar di Kota Terpilih</div>
+                <div className="font-medium">{filters.city_id ? "Lokasi Belajar di Kota Terpilih" : "Lokasi Cafe Terdekat"}</div>
                 {filters.place !== "partner_cafe" && (
                   <Button size="sm" variant="outline" onClick={() => updateFilter("place", "partner_cafe")}>Tampilkan Paket di Cafe</Button>
                 )}
@@ -201,7 +201,7 @@ export default function PackagesPage() {
               ) : (partnerLocations && partnerLocations.length > 0) ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {partnerLocations.map((loc) => (
-                    <Card key={loc.id} className="group transition-all hover:shadow-lg hover:border-primary/30 bg-white border rounded-xl">
+                    <Card key={loc.id} className="group transition-all hover:shadow-lg hover:border-primary/30 bg-white border rounded-xl flex flex-col h-full">
                       <CardHeader className="p-4 pb-2">
                         <div className="flex items-start justify-between gap-2">
                           <div className="font-semibold break-words whitespace-normal flex-1">{loc.name}</div>
@@ -213,17 +213,22 @@ export default function PackagesPage() {
                       <CardContent className="px-4 pb-2">
                         <div className="text-sm text-muted-foreground flex items-center gap-1">
                           <MapPin className="h-4 w-4" />
-                          <span className="break-words whitespace-normal">{loc.address}</span>
+                          <span className="break-words whitespace-normal line-clamp-2">{loc.address}</span>
                         </div>
                         {(() => {
-                          const pkgs = (cityPackages || []).filter(p => String(p.location_id) === String(loc.id));
+                          const pkgs = (allPackages || [])
+                            .filter(p => String(p.location_id) === String(loc.id))
+                            .filter(p => !filters.system || p.system === filters.system)
+                            .filter(p => !filters.mode || p.mode === filters.mode)
+                            .filter(p => !filters.subject_id || p.subject_id === filters.subject_id)
+                            .filter(p => !filters.level_id || p.level_id === filters.level_id);
                           if (pkgs.length === 0) return null;
                           const formatPrice = (price: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(price);
                           return (
                             <div className="mt-3 space-y-3">
                               {pkgs.slice(0, 3).map(p => (
                                 <div key={p.id} className="space-y-1">
-                                  <div className="text-sm font-medium break-words whitespace-normal">{p.name}</div>
+                                  <div className="text-sm font-medium break-words whitespace-normal line-clamp-2">{p.name}</div>
                                   <div className="flex flex-wrap items-center gap-2">
                                     <Badge variant="secondary">{p.system === "private" ? "Private" : "Grup"}</Badge>
                                     <Badge variant="outline">{p.mode === "online" ? "Online" : "Offline"}</Badge>
@@ -238,7 +243,7 @@ export default function PackagesPage() {
                           );
                         })()}
                       </CardContent>
-                      <CardFooter className="p-4 pt-0">
+                      <CardFooter className="p-4 pt-0 mt-auto">
                         <div className="grid grid-cols-1 gap-2 w-full">
                           {loc.maps_link && (
                             <a href={loc.maps_link} target="_blank" rel="noopener noreferrer" className="w-full">
@@ -249,10 +254,6 @@ export default function PackagesPage() {
                             size="sm"
                             className="w-full bg-gradient-primary hover:opacity-90"
                             onClick={() => {
-                              updateFilter("subject_id", "all");
-                              updateFilter("level_id", "all");
-                              updateFilter("mode", "all");
-                              updateFilter("system", "all");
                               updateFilter("location_id", loc.id);
                             }}
                           >
@@ -269,6 +270,33 @@ export default function PackagesPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Selected Location Summary */}
+        {filters.location_id && (() => {
+          const selectedLocation = partnerLocations?.find(l => String(l.id) === String(filters.location_id));
+          return (
+            <Card className="mb-6">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm">
+                    <div className="font-medium">Paket di Cafe: {selectedLocation?.name || "Lokasi Terpilih"}</div>
+                    {selectedLocation?.address && (
+                      <div className="mt-1 text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-4 w-4" />
+                        <span className="break-words whitespace-normal line-clamp-2">{selectedLocation.address}</span>
+                      </div>
+                    )}
+                  </div>
+                  {selectedLocation?.maps_link && (
+                    <a href={selectedLocation.maps_link} target="_blank" rel="noopener noreferrer">
+                      <Button size="sm" variant="outline">Buka Maps</Button>
+                    </a>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* Results */}
         {isLoading ? (
@@ -321,7 +349,7 @@ export default function PackagesPage() {
                 if (filters.place === "student_home") return p.place === "student_home";
                 return true;
               })).map((pkg) => (
-                <Card key={pkg.id} className="group overflow-hidden transition-all hover:shadow-lg hover:border-primary/30">
+                <Card key={pkg.id} className="group overflow-hidden transition-all hover:shadow-lg hover:border-primary/30 flex flex-col h-full">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -357,6 +385,12 @@ export default function PackagesPage() {
                       <MapPin className="h-4 w-4" />
                       <span>{pkg.city?.name}</span>
                     </div>
+                    {pkg.location?.name && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+                        <span>Cafe:</span>
+                        <span className="break-words whitespace-normal">{pkg.location?.name}</span>
+                      </div>
+                    )}
 
                     <div className="text-2xl font-bold text-primary">
                       {formatPrice(pkg.price)}
@@ -366,7 +400,7 @@ export default function PackagesPage() {
                     </div>
                   </CardContent>
 
-                  <CardFooter className="pt-0">
+                  <CardFooter className="pt-0 mt-auto">
                     <Link to={`/packages/${pkg.id}`} className="w-full">
                       <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors" variant="outline">
                         Lihat Detail

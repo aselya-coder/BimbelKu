@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, BookOpen, MapPin, Monitor, Users, ArrowRight, Star, CheckCircle2, Clock, Award, Heart } from "lucide-react";
+import { Search, BookOpen, MapPin, Monitor, Home, Users, ArrowRight, Star, CheckCircle2, Clock, Award, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSubjects, useCities, useTestimonials, usePartnerLocations, usePackages } from "@/hooks/usePublicData";
 import { APP_NAME, LEARNING_MODES, LEARNING_SYSTEMS, LEARNING_PLACES } from "@/lib/constants";
+import type { LearningMode, LearningSystem } from "@/types/database";
 
 export default function HomePage() {
   const { data: subjects } = useSubjects();
@@ -24,7 +25,26 @@ export default function HomePage() {
   });
 
   const { data: partnerLocations, isLoading: isLoadingLocations } = usePartnerLocations(filters.city || undefined);
-  const { data: cityPackages } = usePackages(filters.city ? { city_id: filters.city } : undefined);
+  const { data: allPackages } = usePackages();
+  const { data: searchPackages, isLoading: isLoadingSearch } = usePackages({
+    subject_id: filters.subject || undefined,
+    city_id: filters.city || undefined,
+    mode: filters.mode ? (filters.mode as LearningMode) : undefined,
+    system: filters.system ? (filters.system as LearningSystem) : undefined,
+  });
+
+  const quickResults = (searchPackages || []).filter((p) => {
+    if (filters.place === "partner_cafe") return !!p.location_id;
+    if (filters.place === "student_home") return p.place === "student_home";
+    return true;
+  });
+
+  const packagesParams = new URLSearchParams();
+  if (filters.subject) packagesParams.set("subject", filters.subject);
+  if (filters.city) packagesParams.set("city", filters.city);
+  if (filters.mode) packagesParams.set("mode", filters.mode);
+  if (filters.system) packagesParams.set("system", filters.system);
+  if (filters.place) packagesParams.set("place", filters.place);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -178,11 +198,103 @@ export default function HomePage() {
           </CardContent>
           </Card>
 
-          {filters.city && (
+          {(filters.subject || filters.city || filters.mode || filters.system || filters.place) && (
+            <Card className="mx-auto mt-6 max-w-4xl shadow-md animate-fade-in" style={{ animationDelay: "0.33s" }}>
+              <CardContent className="p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="font-medium">Hasil Cepat</div>
+                  <Link to={`/packages?${packagesParams.toString()}`}>
+                    <Button size="sm" variant="outline">Lihat Semua</Button>
+                  </Link>
+                </div>
+                {isLoadingSearch ? (
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Card key={i}>
+                        <CardHeader>
+                          <Skeleton className="h-6 w-3/4" />
+                          <Skeleton className="h-4 w-1/2 mt-2" />
+                        </CardHeader>
+                        <CardContent>
+                          <Skeleton className="h-4 w-full mb-2" />
+                          <Skeleton className="h-4 w-2/3" />
+                        </CardContent>
+                        <CardFooter>
+                          <Skeleton className="h-10 w-full" />
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                ) : quickResults.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">Tidak ada paket sesuai filter. Coba ubah filter atau klik "Lihat Semua".</div>
+                ) : (
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {quickResults.slice(0, 6).map((pkg) => (
+                      <Card key={pkg.id} className="group overflow-hidden transition-all hover:shadow-lg hover:border-primary/30 flex flex-col h-full">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                                {pkg.name}
+                              </h3>
+                              <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                                <BookOpen className="h-4 w-4" />
+                                <span>{pkg.subject?.name}</span>
+                                <span>•</span>
+                                <span>{pkg.level?.name}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pb-4">
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            <Badge variant="secondary" className="gap-1">
+                              {pkg.mode === "online" ? <Monitor className="h-3 w-3" /> : <Home className="h-3 w-3" />}
+                              {pkg.mode === "online" ? "Online" : "Offline"}
+                            </Badge>
+                            <Badge variant="secondary" className="gap-1">
+                              <Users className="h-3 w-3" />
+                              {pkg.system === "private" ? "Private" : "Grup"}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
+                            <MapPin className="h-4 w-4" />
+                            <span>{pkg.city?.name}</span>
+                          </div>
+                          {pkg.location?.name && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+                              <span>Cafe:</span>
+                              <span className="break-words whitespace-normal">{pkg.location?.name}</span>
+                            </div>
+                          )}
+                          <div className="text-2xl font-bold text-primary">
+                            {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(pkg.price)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {pkg.total_sessions} sesi × {pkg.session_duration} menit
+                          </div>
+                        </CardContent>
+                        <CardFooter className="pt-0 mt-auto">
+                          <Link to={`/packages/${pkg.id}`} className="w-full">
+                            <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors" variant="outline">
+                              Lihat Detail
+                              <ArrowRight className="ml-1 h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {(filters.city || filters.place === "partner_cafe") && (
             <Card className="mx-auto mt-6 max-w-4xl shadow-md animate-fade-in" style={{ animationDelay: "0.35s" }}>
               <CardContent className="p-6">
                 <div className="mb-4 flex items-center justify-between">
-                  <div className="font-medium">Lokasi Cafe di Kota Terpilih</div>
+                  <div className="font-medium">{filters.city ? "Lokasi Cafe di Kota Terpilih" : "Lokasi Cafe Terdekat"}</div>
                 </div>
                 {isLoadingLocations ? (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -193,7 +305,7 @@ export default function HomePage() {
                 ) : (partnerLocations && partnerLocations.length > 0) ? (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {partnerLocations.map((loc) => (
-                      <Card key={loc.id} className="group transition-all hover:shadow-lg hover:border-primary/30 bg-white border rounded-xl">
+                      <Card key={loc.id} className="group transition-all hover:shadow-lg hover:border-primary/30 bg-white border rounded-xl flex flex-col h-full">
                         <CardHeader className="p-4 pb-2">
                           <div className="flex items-start justify-between gap-2">
                             <div className="font-semibold break-words whitespace-normal flex-1">{loc.name}</div>
@@ -205,16 +317,21 @@ export default function HomePage() {
                         <CardContent className="px-4 pb-2">
                           <div className="text-sm text-muted-foreground flex items-center gap-1">
                             <MapPin className="h-4 w-4" />
-                            <span className="break-words whitespace-normal">{loc.address}</span>
+                            <span className="break-words whitespace-normal line-clamp-2">{loc.address}</span>
                           </div>
                           {(() => {
-                            const pkgs = (cityPackages || []).filter(p => String(p.location_id) === String(loc.id));
+                            const pkgs = (allPackages || [])
+                              .filter(p => String(p.location_id) === String(loc.id))
+                              .filter(p => !filters.system || p.system === filters.system)
+                              .filter(p => !filters.mode || p.mode === filters.mode)
+                              .filter(p => !filters.subject || p.subject_id === filters.subject)
+                              .filter(p => !filters.city || p.city_id === filters.city);
                             if (pkgs.length === 0) return null;
                             return (
                               <div className="mt-3 space-y-3">
                                 {pkgs.slice(0, 3).map(p => (
                                   <div key={p.id} className="space-y-1">
-                                    <div className="text-sm font-medium break-words whitespace-normal">{p.name}</div>
+                                    <div className="text-sm font-medium break-words whitespace-normal line-clamp-2">{p.name}</div>
                                     <div className="flex flex-wrap items-center gap-2">
                                       <Badge variant="secondary">{p.system === "private" ? "Private" : "Grup"}</Badge>
                                       <Badge variant="outline">{p.mode === "online" ? "Online" : "Offline"}</Badge>
@@ -222,14 +339,14 @@ export default function HomePage() {
                                     </div>
                                   </div>
                                 ))}
-                              {pkgs.length > 3 && (
-                                <div className="text-xs text-muted-foreground">+{pkgs.length - 3} paket lainnya</div>
-                              )}
+                                {pkgs.length > 3 && (
+                                  <div className="text-xs text-muted-foreground">+{pkgs.length - 3} paket lainnya</div>
+                                )}
                               </div>
                             );
                           })()}
                         </CardContent>
-                        <CardFooter className="p-4 pt-0">
+                        <CardFooter className="p-4 pt-0 mt-auto">
                           <div className="grid grid-cols-1 gap-2 w-full">
                             {loc.maps_link && (
                               <a href={loc.maps_link} target="_blank" rel="noopener noreferrer" className="w-full">
@@ -238,7 +355,7 @@ export default function HomePage() {
                             )}
                             <Button size="sm" className="w-full bg-gradient-primary hover:opacity-90" onClick={() => {
                               const params = new URLSearchParams();
-                              params.set("city", filters.city);
+                              params.set("place", "partner_cafe");
                               params.set("location", loc.id);
                               navigate(`/packages?${params.toString()}`);
                             }}>Lihat Paket di Cafe Ini</Button>
