@@ -38,7 +38,7 @@ export const LEARNING_MODES = [
 // Learning places
 export const LEARNING_PLACES = [
   { value: "student_home", label: "Rumah Siswa" },
-  { value: "partner_cafe", label: "Cafe Terdekat" },
+  { value: "partner_cafe", label: "Cafe" },
 ] as const;
 
 // Learning systems

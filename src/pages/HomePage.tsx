@@ -35,7 +35,6 @@ export default function HomePage() {
 
   const quickResults = (searchPackages || []).filter((p) => {
     if (filters.place === "partner_cafe") return !!p.location_id;
-    if (filters.place === "student_home") return p.place === "student_home";
     return true;
   });
 
@@ -179,12 +178,12 @@ export default function HomePage() {
                 <SelectTrigger className="w-full truncate [&>span]:whitespace-nowrap">
                   <SelectValue placeholder="Semua Tempat" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Tempat</SelectItem>
-                  {LEARNING_PLACES.map((p) => (
-                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                  ))}
-                </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Tempat</SelectItem>
+                    {LEARNING_PLACES.filter((p) => p.value === "partner_cafe").map((p) => (
+                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
               </Select>
             </div>
 

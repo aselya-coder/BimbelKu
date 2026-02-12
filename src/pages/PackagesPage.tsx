@@ -171,7 +171,7 @@ export default function PackagesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Tempat</SelectItem>
-                  {LEARNING_PLACES.map((p) => (
+                  {LEARNING_PLACES.filter((p) => p.value === "partner_cafe").map((p) => (
                     <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -319,7 +319,6 @@ export default function PackagesPage() {
           </div>
         ) : ((packages || []).filter((p) => {
           if (filters.place === "partner_cafe") return !!p.location_id;
-          if (filters.place === "student_home") return p.place === "student_home";
           return true;
         })).length === 0 ? (
           <Card className="p-12 text-center">
@@ -339,14 +338,12 @@ export default function PackagesPage() {
             <p className="mb-4 text-sm text-muted-foreground">
               Menampilkan {((packages || []).filter((p) => {
                 if (filters.place === "partner_cafe") return !!p.location_id;
-                if (filters.place === "student_home") return p.place === "student_home";
                 return true;
               })).length} paket
             </p>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {((packages || []).filter((p) => {
                 if (filters.place === "partner_cafe") return !!p.location_id;
-                if (filters.place === "student_home") return p.place === "student_home";
                 return true;
               })).map((pkg) => (
                 <Card key={pkg.id} className="group overflow-hidden transition-all hover:shadow-lg hover:border-primary/30 flex flex-col h-full">
