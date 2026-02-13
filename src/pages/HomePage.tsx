@@ -197,7 +197,7 @@ export default function HomePage() {
           </CardContent>
           </Card>
 
-          {(filters.subject || filters.city || filters.mode || filters.system || filters.place) && (
+          {filters.place !== "partner_cafe" && filters.mode !== "offline" && !filters.city && (filters.subject || filters.mode || filters.system || filters.place) && (
             <Card className="mx-auto mt-6 max-w-4xl shadow-md animate-fade-in" style={{ animationDelay: "0.33s" }}>
               <CardContent className="p-6">
                 <div className="mb-4 flex items-center justify-between">
@@ -289,7 +289,7 @@ export default function HomePage() {
             </Card>
           )}
 
-          {(filters.city || filters.place === "partner_cafe") && (
+          {(filters.mode !== "online" && (filters.mode === "offline" || filters.city || (filters.place === "partner_cafe"))) && (
             <Card className="mx-auto mt-6 max-w-4xl shadow-md animate-fade-in" style={{ animationDelay: "0.35s" }}>
               <CardContent className="p-6">
                 <div className="mb-4 flex items-center justify-between">

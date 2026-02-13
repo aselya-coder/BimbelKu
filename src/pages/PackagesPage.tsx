@@ -181,7 +181,7 @@ export default function PackagesPage() {
         </Card>
 
         {/* Partner Locations */}
-        {(!filters.location_id && (filters.place === "partner_cafe" || filters.city_id)) && (
+        {(!filters.location_id && filters.mode !== "online" && (filters.mode === "offline" || filters.place === "partner_cafe" || filters.city_id)) && (
           <Card className="mb-8">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -298,118 +298,137 @@ export default function PackagesPage() {
           );
         })()}
 
-        {/* Results */}
-        {isLoading ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-4 w-1/2 mt-2" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-4 w-full mb-2" />
-                  <Skeleton className="h-4 w-2/3" />
-                </CardContent>
-                <CardFooter>
-                  <Skeleton className="h-10 w-full" />
-                </CardFooter>
+        {(() => {
+          const hideBecauseShowingCafes = (!filters.location_id && filters.mode !== "online" && (filters.mode === "offline" || filters.place === "partner_cafe" || filters.city_id));
+          const showEmptyBecauseCafeOnline = (filters.place === "partner_cafe" && !filters.location_id && filters.mode === "online");
+          const filtered = (packages || []).filter((p) => {
+            if (filters.place === "partner_cafe") return !!p.location_id;
+            return true;
+          });
+          if (hideBecauseShowingCafes) return null;
+          if (showEmptyBecauseCafeOnline) {
+            return (
+              <Card className="p-12 text-center">
+                <BookOpen className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-medium">Tidak ada paket ditemukan</h3>
+                <p className="mt-2 text-muted-foreground">
+                  Coba ubah filter pencarian atau hubungi kami untuk informasi lebih lanjut.
+                </p>
+                {hasActiveFilters && (
+                  <Button variant="outline" className="mt-4" onClick={clearFilters}>
+                    Reset Filter
+                  </Button>
+                )}
               </Card>
-            ))}
-          </div>
-        ) : ((packages || []).filter((p) => {
-          if (filters.place === "partner_cafe") return !!p.location_id;
-          return true;
-        })).length === 0 ? (
-          <Card className="p-12 text-center">
-            <BookOpen className="mx-auto h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-medium">Tidak ada paket ditemukan</h3>
-            <p className="mt-2 text-muted-foreground">
-              Coba ubah filter pencarian atau hubungi kami untuk informasi lebih lanjut.
-            </p>
-            {hasActiveFilters && (
-              <Button variant="outline" className="mt-4" onClick={clearFilters}>
-                Reset Filter
-              </Button>
-            )}
-          </Card>
-        ) : (
-          <>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Menampilkan {((packages || []).filter((p) => {
-                if (filters.place === "partner_cafe") return !!p.location_id;
-                return true;
-              })).length} paket
-            </p>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {((packages || []).filter((p) => {
-                if (filters.place === "partner_cafe") return !!p.location_id;
-                return true;
-              })).map((pkg) => (
-                <Card key={pkg.id} className="group overflow-hidden transition-all hover:shadow-lg hover:border-primary/30 flex flex-col h-full">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1">
-                          {pkg.name}
-                        </h3>
-                        <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                          <BookOpen className="h-4 w-4" />
-                          <span>{pkg.subject?.name}</span>
-                          <span>•</span>
-                          <span>{pkg.level?.name}</span>
+            );
+          }
+          if (isLoading) {
+            return (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardHeader>
+                      <Skeleton className="h-6 w-3/4" />
+                      <Skeleton className="h-4 w-1/2 mt-2" />
+                    </CardHeader>
+                    <CardContent>
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </CardContent>
+                    <CardFooter>
+                      <Skeleton className="h-10 w-full" />
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            );
+          }
+          if (filtered.length === 0) {
+            return (
+              <Card className="p-12 text-center">
+                <BookOpen className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-medium">Tidak ada paket ditemukan</h3>
+                <p className="mt-2 text-muted-foreground">
+                  Coba ubah filter pencarian atau hubungi kami untuk informasi lebih lanjut.
+                </p>
+                {hasActiveFilters && (
+                  <Button variant="outline" className="mt-4" onClick={clearFilters}>
+                    Reset Filter
+                  </Button>
+                )}
+              </Card>
+            );
+          }
+          return (
+            <>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Menampilkan {filtered.length} paket
+              </p>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filtered.map((pkg) => (
+                  <Card key={pkg.id} className="group overflow-hidden transition-all hover:shadow-lg hover:border-primary/30 flex flex-col h-full">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                            {pkg.name}
+                          </h3>
+                          <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                            <BookOpen className="h-4 w-4" />
+                            <span>{pkg.subject?.name}</span>
+                            <span>•</span>
+                            <span>{pkg.level?.name}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="pb-4">
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <Badge variant="secondary" className="gap-1">
-                        {pkg.mode === "online" ? <Wifi className="h-3 w-3" /> : <Home className="h-3 w-3" />}
-                        {getModeLabel(pkg.mode)}
-                      </Badge>
-                      <Badge variant="secondary" className="gap-1">
-                        <Users className="h-3 w-3" />
-                        {getSystemLabel(pkg.system)}
-                      </Badge>
-                      {pkg.place === "student_home" && (
-                        <Badge variant="outline">{getPlaceLabel(pkg.place)}</Badge>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
-                      <MapPin className="h-4 w-4" />
-                      <span>{pkg.city?.name}</span>
-                    </div>
-                    {pkg.location?.name && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
-                        <span>Cafe:</span>
-                        <span className="break-words whitespace-normal">{pkg.location?.name}</span>
+                    </CardHeader>
+                    
+                    <CardContent className="pb-4">
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        <Badge variant="secondary" className="gap-1">
+                          {pkg.mode === "online" ? <Wifi className="h-3 w-3" /> : <Home className="h-3 w-3" />}
+                          {getModeLabel(pkg.mode)}
+                        </Badge>
+                        <Badge variant="secondary" className="gap-1">
+                          <Users className="h-3 w-3" />
+                          {getSystemLabel(pkg.system)}
+                        </Badge>
+                        {pkg.place === "student_home" && (
+                          <Badge variant="outline">{getPlaceLabel(pkg.place)}</Badge>
+                        )}
                       </div>
-                    )}
-
-                    <div className="text-2xl font-bold text-primary">
-                      {formatPrice(pkg.price)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {pkg.total_sessions} sesi × {pkg.session_duration} menit
-                    </div>
-                  </CardContent>
-
-                  <CardFooter className="pt-0 mt-auto">
-                    <Link to={`/packages/${pkg.id}`} className="w-full">
-                      <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors" variant="outline">
-                        Lihat Detail
-                        <ChevronRight className="ml-1 h-4 w-4" />
-                      </Button>
-                    </Link>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          </>
-        )}
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
+                        <MapPin className="h-4 w-4" />
+                        <span>{pkg.city?.name}</span>
+                      </div>
+                      {pkg.location?.name && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+                          <span>Cafe:</span>
+                          <span className="break-words whitespace-normal">{pkg.location?.name}</span>
+                        </div>
+                      )}
+                      <div className="text-2xl font-bold text-primary">
+                        {formatPrice(pkg.price)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {pkg.total_sessions} sesi × {pkg.session_duration} menit
+                      </div>
+                    </CardContent>
+                    
+                    <CardFooter className="pt-0 mt-auto">
+                      <Link to={`/packages/${pkg.id}`} className="w-full">
+                        <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors" variant="outline">
+                          Lihat Detail
+                          <ChevronRight className="ml-1 h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </>
+          );
+        })()}
       </div>
     </div>
   );
