@@ -33,10 +33,7 @@ export default function HomePage() {
     system: filters.system ? (filters.system as LearningSystem) : undefined,
   });
 
-  const quickResults = (searchPackages || []).filter((p) => {
-    if (filters.place === "partner_cafe") return !!p.location_id;
-    return true;
-  });
+  
 
   const packagesParams = new URLSearchParams();
   if (filters.subject) packagesParams.set("subject", filters.subject);
@@ -197,15 +194,26 @@ export default function HomePage() {
           </CardContent>
           </Card>
 
-          {filters.place !== "partner_cafe" && filters.mode !== "offline" && !filters.city && (filters.subject || filters.mode || filters.system || filters.place) && (
-            <Card className="mx-auto mt-6 max-w-4xl shadow-md animate-fade-in" style={{ animationDelay: "0.33s" }}>
+          
+
+          {(filters.place === "partner_cafe" && filters.mode === "online") && (
+            <Card className="mx-auto mt-6 max-w-4xl shadow-md animate-fade-in" style={{ animationDelay: "0.34s" }}>
+              <CardContent className="p-12 text-center">
+                <BookOpen className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-medium">Tidak ada paket ditemukan</h3>
+                <p className="mt-2 text-muted-foreground">
+                  Coba ubah filter pencarian atau hubungi kami untuk informasi lebih lanjut.
+                </p>
+                <Button variant="outline" className="mt-4" onClick={() => setFilters({ subject: "", city: "", mode: "", system: "", place: "" })}>
+                  Reset Filter
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {(filters.mode === "online" && !!filters.city && filters.place !== "partner_cafe") && (
+            <Card className="mx-auto mt-6 max-w-4xl shadow-md animate-fade-in" style={{ animationDelay: "0.36s" }}>
               <CardContent className="p-6">
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="font-medium">Hasil Cepat</div>
-                  <Link to={`/packages?${packagesParams.toString()}`}>
-                    <Button size="sm" variant="outline">Lihat Semua</Button>
-                  </Link>
-                </div>
                 {isLoadingSearch ? (
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {Array.from({ length: 6 }).map((_, i) => (
@@ -224,11 +232,9 @@ export default function HomePage() {
                       </Card>
                     ))}
                   </div>
-                ) : quickResults.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">Tidak ada paket sesuai filter. Coba ubah filter atau klik "Lihat Semua".</div>
-                ) : (
+                ) : (searchPackages && searchPackages.length > 0) ? (
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {quickResults.slice(0, 6).map((pkg) => (
+                    {searchPackages.map((pkg) => (
                       <Card key={pkg.id} className="group overflow-hidden transition-all hover:shadow-lg hover:border-primary/30 flex flex-col h-full">
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between gap-2">
@@ -284,6 +290,8 @@ export default function HomePage() {
                       </Card>
                     ))}
                   </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">Tidak ada paket online di kota ini.</div>
                 )}
               </CardContent>
             </Card>
