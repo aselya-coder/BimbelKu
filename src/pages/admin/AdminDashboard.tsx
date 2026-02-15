@@ -48,7 +48,7 @@ export default function AdminDashboard() {
     queryFn: async (): Promise<AdminStats> => {
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 500));
-      const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
+      const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_ANON_KEY;
 
       if (isSupabaseConfigured) {
         try {

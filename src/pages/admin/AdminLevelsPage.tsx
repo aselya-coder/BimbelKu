@@ -19,7 +19,7 @@ export default function AdminLevelsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingLevel, setEditingLevel] = useState<EducationLevel | null>(null);
   const [formData, setFormData] = useState({ name: "", code: "", sort_order: 1 });
-  const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
+  const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   const { data: levels, isLoading } = useQuery({
     queryKey: ["admin-levels"],

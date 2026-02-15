@@ -51,7 +51,7 @@ export default function AdminLoginPage() {
       if (error) {
         toast({
           title: "Login Gagal",
-          description: "Email atau password salah.",
+          description: error.message || "Email atau password salah.",
           variant: "destructive",
         });
         return;

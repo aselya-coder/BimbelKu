@@ -6,8 +6,8 @@ import { CITY_CENTERS } from "@/lib/constants";
 import { haversineDistance } from "@/lib/utils";
 import type { Subject, EducationLevel, City, TutoringPackage, PartnerLocation, Testimonial, Schedule } from "@/types/database";
 
-// Check if Supabase is configured
-const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
+// Check if Supabase is configured (require anon key only)
+const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Initialize mock data if Supabase is not configured
 if (!isSupabaseConfigured) {

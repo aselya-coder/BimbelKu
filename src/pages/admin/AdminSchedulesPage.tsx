@@ -31,7 +31,7 @@ export default function AdminSchedulesPage() {
     is_available: true,
   });
 
-  const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
+  const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   const { data: packages } = useQuery({
     queryKey: ["admin-packages-select"],

@@ -21,7 +21,7 @@ import type { Registration, RegistrationStatus, Schedule, TutoringPackage } from
 export default function AdminRegistrationsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY);
+  const isSupabaseConfigured = !!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_ANON_KEY;
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<RegistrationStatus | "all">("all");
   const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null);
